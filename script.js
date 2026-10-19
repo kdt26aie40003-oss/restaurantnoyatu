@@ -7,6 +7,97 @@ let currentCategory = "前菜";
 // localStorage に保存するときの名前（キー）
 const STORAGE_KEY = "torimaru-slips";
 
+// ===== 時刻 =====
+
+// 時刻をずらす分（確認用。飲み放題の「早送り」で使う）
+let timeOffsetMinutes = 0;
+
+// 今の時刻を返す。プログラムの中で「今」が必要なところは、すべてこの関数を使う
+// 確認用の「時刻を指定する」にチェックがあれば、今日の日付＋指定した時刻を使う
+// どちらの場合も、timeOffsetMinutes の分だけ先の時刻にする
+function getNow() {
+  let now = new Date();
+
+  const useTestTime = document.getElementById("test-time-on");
+  const errorText = document.getElementById("test-time-error");
+  if (useTestTime && useTestTime.checked) {
+    const value = document.getElementById("test-time").value; // 例："17:30"
+    const parts = value.split(":");
+    const hour = toInteger(parts[0]);
+    const minute = toInteger(parts[1]);
+    if (parts.length >= 2 && hour !== null && minute !== null && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      now.setHours(hour, minute, 0, 0);
+      errorText.textContent = "";
+    } else {
+      // 時刻が空欄やおかしな値なら、本当の時刻を使う
+      errorText.textContent = "時刻を正しく入力してください（今は本当の時刻を使っています）";
+    }
+  } else if (errorText) {
+    errorText.textContent = "";
+  }
+
+  return new Date(now.getTime() + timeOffsetMinutes * 60 * 1000);
+}
+
+// ===== ハッピーアワー =====
+
+const HAPPY_HOUR_START = 17; // 17:00 から
+const HAPPY_HOUR_END = 19; // 19:00 ちょうどで終わり
+const HAPPY_HOUR_DISCOUNT = 100; // お酒1杯あたりの割引額（円）
+
+// 今がハッピーアワーかどうか
+function isHappyHour() {
+  const hour = getNow().getHours();
+  return hour >= HAPPY_HOUR_START && hour < HAPPY_HOUR_END;
+}
+
+// 料理の、今のハッピーアワー割引額（1個あたり）。お酒で開催中なら100円、それ以外は0円
+function happyHourDiscountFor(item) {
+  if (item.isAlcohol && isHappyHour()) {
+    return HAPPY_HOUR_DISCOUNT;
+  }
+  return 0;
+}
+
+// 注文の、ハッピーアワー割引額（1個あたり）。古いデータにはないので、そのときは0円
+function hhDiscountOf(order) {
+  if (typeof order.hhDiscount === "number") {
+    return order.hhDiscount;
+  }
+  return 0;
+}
+
+// 画面上部の「ハッピーアワー開催中！ 19:00まで（あと○分）」を表示し直す
+// 開催中かどうかが変わったときは、メニューとカートの値段も表示し直す
+let lastHappyHour = null;
+function updateHappyHour() {
+  const banner = document.getElementById("hh-banner");
+  const now = getNow();
+  const happy = isHappyHour();
+
+  if (happy) {
+    const end = new Date(now.getTime());
+    end.setHours(HAPPY_HOUR_END, 0, 0, 0);
+    const minutesLeft = Math.ceil((end.getTime() - now.getTime()) / 60000);
+    banner.textContent = `🍺 ハッピーアワー開催中！ ${HAPPY_HOUR_END}:00まで（あと${minutesLeft}分）お酒が1杯${HAPPY_HOUR_DISCOUNT}円引き`;
+    banner.hidden = false;
+  } else {
+    banner.hidden = true;
+  }
+
+  if (happy !== lastHappyHour) {
+    lastHappyHour = happy;
+    showMenu();
+    showCart();
+  }
+}
+
+// 確認用の時刻指定を変えたときの動き
+function onTestTimeChange() {
+  lastHappyHour = null; // 必ずメニューとカートを表示し直す
+  updateHappyHour();
+}
+
 // これまでの全部の伝票（1回の来店＝1枚の伝票）
 let slips = loadSlips();
 
@@ -78,7 +169,7 @@ function startNewSlip() {
 
   slip = {
     slipId: maxId + 1,
-    startedAt: new Date().toLocaleString("ja-JP"),
+    startedAt: getNow().toLocaleString("ja-JP"),
     people: null, // テーブルの人数（人数入力画面で決める）
     customer: null, // お客さんの年代と性別（「おすすめを見る」で記録する）
     cart: [], // カート（「注文する」を押す前の料理）
@@ -321,6 +412,13 @@ function showMenu() {
       toppingHtml += "</div>";
     }
 
+    // ハッピーアワー中のお酒は、元の値段に取り消し線を付けて、割引後の値段を横に出す
+    const discount = happyHourDiscountFor(item);
+    let priceHtml = `<p class="price">${item.price}円（税抜）</p>`;
+    if (discount > 0) {
+      priceHtml = `<p class="price"><s class="old-price">${item.price}円</s> <span class="hh-price">${item.price - discount}円</span>（税抜）</p>`;
+    }
+
     const card = document.createElement("div");
     card.className = "menu-item";
     card.innerHTML = `
@@ -328,7 +426,7 @@ function showMenu() {
       <h2>${item.name}</h2>
       <p class="allergen">${allergenLabel(item.allergens)}</p>
       ${alcoholMark}
-      <p class="price">${item.price}円（税抜）</p>
+      ${priceHtml}
       ${toppingHtml}
       <div class="order-row">
         <label>数量 <input type="text" class="quantity" value="1" inputmode="numeric"></label>
@@ -357,7 +455,7 @@ function showMenu() {
 
     // カードの金額「（料理の価格＋トッピング）× 数量」を表示し直す
     function updateCardTotal() {
-      const unitPrice = item.price + toppingTotal(selectedToppings());
+      const unitPrice = item.price + toppingTotal(selectedToppings()) - discount;
       const quantity = toInteger(quantityInput.value);
       if (quantity === null || quantity < 1 || quantity > 10) {
         totalText.textContent = `${unitPrice}円 × 数量`;
@@ -545,10 +643,17 @@ function makeRecommendCard(item, reason) {
     return card;
   }
 
+  // ハッピーアワー中のお酒には「ハッピーアワーで100円引き」と出す
+  let hhNote = "";
+  if (happyHourDiscountFor(item) > 0) {
+    hhNote = `<p class="hh-tag">ハッピーアワーで${HAPPY_HOUR_DISCOUNT}円引き</p>`;
+  }
+
   card.innerHTML = `
     <p class="recommend-reason">${reason}</p>
     <h3>${item.name}</h3>
     <p class="price">${item.price}円（税抜）</p>
+    ${hhNote}
     <button class="order-button">カートに入れる</button>
     <p class="error"></p>
   `;
@@ -857,16 +962,23 @@ function showCart() {
       plusDisabled = "disabled";
     }
 
+    // 今ハッピーアワーなら、お酒は割引した値段で出す（本当の割引は「注文する」の時刻で決まる）
+    const discount = cartDiscountOf(entry);
+    let hhTag = "";
+    if (discount > 0) {
+      hhTag = `<span class="hh-tag">ハッピーアワー −${discount * entry.quantity}円</span>`;
+    }
+
     const row = document.createElement("li");
     row.className = "order-item";
     row.innerHTML = `
-      <span class="order-name">${orderLabel(entry)}</span>
+      <span class="order-name">${orderLabel(entry)}${hhTag}</span>
       <span class="quantity-control">
         <button class="minus-button" ${minusDisabled}>−</button>
         <span class="order-quantity">${entry.quantity}</span>
         <button class="plus-button" ${plusDisabled}>＋</button>
       </span>
-      <span class="order-price">${(entry.unitPrice * entry.quantity).toLocaleString()}円</span>
+      <span class="order-price">${((entry.unitPrice - discount) * entry.quantity).toLocaleString()}円</span>
       <button class="cancel-button">削除</button>
     `;
     row.querySelector(".minus-button").addEventListener("click", function () {
@@ -890,11 +1002,20 @@ function showCart() {
   updateCartBadge();
 }
 
-// カートの合計金額
+// カートの1行の、今のハッピーアワー割引額（1個あたり）
+function cartDiscountOf(entry) {
+  const item = findMenu(entry.menuId);
+  if (item === null) {
+    return 0;
+  }
+  return happyHourDiscountFor(item);
+}
+
+// カートの合計金額（今ハッピーアワーなら、お酒の割引を引いた金額）
 function cartTotal() {
   let total = 0;
   for (const entry of slip.cart) {
-    total += entry.unitPrice * entry.quantity;
+    total += (entry.unitPrice - cartDiscountOf(entry)) * entry.quantity;
   }
   return total;
 }
@@ -1031,8 +1152,10 @@ function addOrder(item, quantity, toppings) {
     price: item.price,
     toppings: savedToppings,
     unitPrice: item.price + toppingTotal(savedToppings), // 料理＋トッピングの1個あたりの値段
+    // ハッピーアワー割引（1個あたり）。注文した時刻で決め、あとで時間が過ぎても変えない
+    hhDiscount: happyHourDiscountFor(item),
     quantity: quantity,
-    orderedAt: new Date().toLocaleString("ja-JP"),
+    orderedAt: getNow().toLocaleString("ja-JP"),
     status: "注文済み",
   };
   slip.orders.push(order);
@@ -1092,10 +1215,16 @@ function showOrders() {
       plusDisabled = "disabled";
     }
 
+    // ハッピーアワーで注文したお酒には、割引の印を付ける
+    let hhTag = "";
+    if (hhDiscountOf(order) > 0) {
+      hhTag = `<span class="hh-tag">ハッピーアワー −${hhDiscountOf(order) * order.quantity}円</span>`;
+    }
+
     const row = document.createElement("li");
     row.className = "order-item";
     row.innerHTML = `
-      <span class="order-name">${orderLabel(order)}</span>
+      <span class="order-name">${orderLabel(order)}${hhTag}</span>
       <span class="quantity-control">
         <button class="minus-button" ${minusDisabled}>−</button>
         <span class="order-quantity">${order.quantity}</span>
@@ -1120,8 +1249,28 @@ function showOrders() {
     orderList.innerHTML = '<li class="empty">まだ注文はありません。カートから「注文する」を押すとここに出ます</li>';
   }
 
-  // 今の小計（税抜）も表示する
-  document.getElementById("subtotal").textContent = `小計（税抜）：${calcSubtotal().toLocaleString()}円`;
+  // 今の小計（税抜）も表示する。ハッピーアワーの割引があれば、その行も出す
+  let subtotalHtml = `小計（税抜）：${calcSubtotal().toLocaleString()}円`;
+  const discount = calcHappyHourDiscount();
+  if (discount > 0) {
+    subtotalHtml += `<br><span class="discount-text">ハッピーアワー割引：−${discount.toLocaleString()}円</span>`;
+  }
+  document.getElementById("subtotal").innerHTML = subtotalHtml;
+}
+
+// ハッピーアワー割引の合計（取り消していない注文の「1個あたりの割引 × 数量」の合計）
+// targetSlip を省略すると、今の伝票で計算する
+function calcHappyHourDiscount(targetSlip) {
+  if (targetSlip === undefined) {
+    targetSlip = slip;
+  }
+  let discount = 0;
+  for (const order of targetSlip.orders) {
+    if (order.status === "注文済み") {
+      discount += hhDiscountOf(order) * order.quantity;
+    }
+  }
+  return discount;
 }
 
 // 小計（取り消していない注文の「1個あたりの値段 × 数量」の合計）を計算する
@@ -1142,14 +1291,16 @@ function calcSubtotal(targetSlip) {
 // 会計の金額を計算する（README の「会計」の順番どおり）
 function calcCheckout(people) {
   const subtotal = calcSubtotal();
+  const hhDiscount = calcHappyHourDiscount(); // ハッピーアワー割引
   const otoshi = 300 * people; // お通し代：1人300円
-  // 消費税：10%で1円未満は切り捨て（小数の計算誤差が出ないよう、10で割って切り捨てる）
-  const tax = Math.floor((subtotal + otoshi) / 10);
-  const total = subtotal + otoshi + tax; // 税込合計
+  // 消費税：割引したあとの金額にかける。10%で1円未満は切り捨て（小数の計算誤差が出ないよう、10で割って切り捨てる）
+  const tax = Math.floor((subtotal - hhDiscount + otoshi) / 10);
+  const total = subtotal - hhDiscount + otoshi + tax; // 税込合計
   const perPerson = Math.ceil(total / people); // 1人あたり：1円未満は切り上げ
   return {
     people: people,
     subtotal: subtotal,
+    hhDiscount: hhDiscount,
     otoshi: otoshi,
     tax: tax,
     total: total,
@@ -1159,9 +1310,15 @@ function calcCheckout(people) {
 
 // 会計の内訳の表（HTML）を作る。確認画面と会計の結果の両方で使う
 function checkoutTable(c) {
+  // ハッピーアワー割引がある会計だけ、その行を出す（古いデータには hhDiscount がない）
+  let discountRow = "";
+  if (c.hhDiscount > 0) {
+    discountRow = `<tr class="discount-row"><td>ハッピーアワー割引</td><td>−${c.hhDiscount.toLocaleString()}円</td></tr>`;
+  }
   return `
     <table class="receipt-table">
       <tr><td>小計</td><td>${c.subtotal.toLocaleString()}円</td></tr>
+      ${discountRow}
       <tr><td>お通し代（300円 × ${c.people}人）</td><td>${c.otoshi.toLocaleString()}円</td></tr>
       <tr><td>消費税（10%）</td><td>${c.tax.toLocaleString()}円</td></tr>
       <tr class="receipt-total"><td>税込合計</td><td>${c.total.toLocaleString()}円</td></tr>
@@ -1231,7 +1388,7 @@ function confirmCheckout() {
 
   // 会計情報を伝票に記録して保存する（データは店側に残る）
   slip.checkout = calcCheckout(slip.people);
-  slip.checkout.paidAt = new Date().toLocaleString("ja-JP");
+  slip.checkout.paidAt = getNow().toLocaleString("ja-JP");
   saveSlips();
 
   // 会計の結果を画面に出す（「注文まとめ」で見られるように、会計した伝票を覚えておく）
@@ -1337,12 +1494,20 @@ function openSummary(targetSlip) {
     totalCount += groups[key].quantity;
   }
 
+  // ハッピーアワー割引があれば、小計の下に出す
+  let summaryDiscount = "";
+  const discount = calcHappyHourDiscount(targetSlip);
+  if (discount > 0) {
+    summaryDiscount = `<p class="summary-total">ハッピーアワー割引 −${discount.toLocaleString()}円</p>`;
+  }
+
   document.getElementById("summary-detail").innerHTML = `
     <h3>料理</h3>
     ${makeTable(false)}
     <h3>ドリンク</h3>
     ${makeTable(true)}
     <p class="summary-total">合計 ${totalCount}品・小計（税抜）${calcSubtotal(targetSlip).toLocaleString()}円</p>
+    ${summaryDiscount}
   `;
   document.getElementById("summary").hidden = false;
 }
@@ -1528,6 +1693,10 @@ showOrders();
 showCart();
 showPeopleButtons();
 showPage("guest");
+updateHappyHour();
+
+// ハッピーアワーの表示（あと○分）は1分ごとに更新する
+setInterval(updateHappyHour, 60 * 1000);
 
 // ボタンを押したときの動きを登録する
 document.getElementById("welcome").addEventListener("click", startMenu);
@@ -1554,6 +1723,8 @@ document.getElementById("cart-more").addEventListener("click", function () {
   showPage("menu");
 });
 document.getElementById("place-order").addEventListener("click", placeOrder);
+document.getElementById("test-time-on").addEventListener("change", onTestTimeChange);
+document.getElementById("test-time").addEventListener("input", onTestTimeChange);
 document.getElementById("checkout-button").addEventListener("click", checkout);
 document.getElementById("confirm-back").addEventListener("click", closeConfirm);
 document.getElementById("confirm-ok").addEventListener("click", confirmCheckout);

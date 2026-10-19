@@ -436,10 +436,69 @@ button {
 /* フッター（注文履歴） */
 footer {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 16px;
   padding: 16px;
   border-top: 1px solid #ddd;
+}
+
+/* 確認用の機能（講師が試すためのもの。目立たないように灰色の枠で囲む） */
+#test-tools {
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px dashed #aaa;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+.test-title {
+  margin: 0 0 8px;
+  font-weight: bold;
+}
+
+#test-time {
+  margin-left: 8px;
+  padding: 4px;
+  font-size: 15px;
+}
+
+/* ハッピーアワー */
+#hh-banner {
+  padding: 10px 16px;
+  background-color: #ffd54f;
+  color: #5d3a00;
+  font-weight: bold;
+  text-align: center;
+}
+
+.old-price {
+  color: #999;
+  font-weight: normal;
+}
+
+.hh-price {
+  color: #d00;
+  font-size: 18px;
+}
+
+.hh-tag {
+  display: inline-block;
+  margin: 4px 0 0 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background-color: #ffd54f;
+  color: #5d3a00;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.discount-row td,
+.discount-text {
+  color: #d00;
 }
 
 footer button {

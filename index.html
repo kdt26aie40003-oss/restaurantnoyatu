@@ -42,6 +42,9 @@
       <button class="page-tab" data-page="orders">注文済み・会計</button>
     </nav>
 
+    <!-- ハッピーアワー開催中だけ出すお知らせ（script.js が1分ごとに更新） -->
+    <div id="hh-banner" hidden></div>
+
     <main>
       <!-- ① お客さま情報・おすすめのページ -->
       <div id="page-guest" class="page">
@@ -169,6 +172,14 @@
 
     <footer>
       <button id="history-button">注文履歴</button>
+
+      <!-- 講師が確認するための機能（ハッピーアワーを昼でも試せるようにする） -->
+      <div id="test-tools">
+        <p class="test-title">確認用の機能</p>
+        <label><input type="checkbox" id="test-time-on"> 確認用：時刻を指定する</label>
+        <input type="time" id="test-time">
+        <p id="test-time-error" class="error"></p>
+      </div>
     </footer>
 
     <!-- スマホだけ画面下に出す固定バー（押すとカートのページへ） -->
