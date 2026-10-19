@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>焼き鳥 とりまる</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 最初に出すようこそ画面（3秒たつか、タップするとメニュー画面へ） -->
+  <div id="welcome">
+    <h1>焼き鳥 とりまる</h1>
+    <p>いらっしゃいませ！</p>
+    <p class="welcome-hint">画面をタップしてください</p>
+  </div>
+
+  <!-- 人数入力画面（ようこそ画面の次に出す。最初は隠しておく） -->
+  <div id="people-screen" hidden>
+    <h2>何名さまですか？</h2>
+    <div id="people-buttons"></div>
+    <p class="people-other">7名さま以上は、こちらに入力してください（1〜20）</p>
+    <div class="people-row">
+      <input type="text" id="people-input" inputmode="numeric" placeholder="例：8">
+      <span>人</span>
+      <button id="people-ok">決定</button>
+    </div>
+    <p id="people-error" class="error"></p>
+  </div>
+
+  <!-- メニュー画面（最初は hidden で隠しておく） -->
+  <div id="app" hidden>
+    <header>
+      <h1>焼き鳥 とりまる</h1>
+      <p>いらっしゃいませ！</p>
+    </header>
+
+    <main>
+      <!-- お客さま情報・おすすめ欄 -->
+      <section id="guest-section">
+        <h2>お客さま情報・おすすめ</h2>
+        <label>年齢 <input type="text" id="age" inputmode="numeric" placeholder="例：25"> 歳</label>
+        <p id="age-error" class="error"></p>
+        <p class="note">お酒を注文するときは、年齢の入力が必要です（20歳未満の方はお酒を注文できません）</p>
+
+        <div class="choice-row">
+          <span class="choice-title">お腹の空き具合</span>
+          <label><input type="radio" name="hunger" value="ぺこぺこ"> ぺこぺこ</label>
+          <label><input type="radio" name="hunger" value="ふつう" checked> ふつう</label>
+          <label><input type="radio" name="hunger" value="少しだけ"> 少しだけ</label>
+        </div>
+
+        <div class="choice-row">
+          <span class="choice-title">好み</span>
+          <label><input type="radio" name="taste" value="さっぱり" checked> さっぱり</label>
+          <label><input type="radio" name="taste" value="こってり"> こってり</label>
+          <label><input type="radio" name="taste" value="甘いもの"> 甘いもの</label>
+        </div>
+
+        <button id="recommend-button">おすすめを見る</button>
+        <p id="recommend-error" class="error"></p>
+
+        <!-- おすすめの結果（script.js が3品を並べる） -->
+        <div id="recommend-list"></div>
+      </section>
+
+      <!-- カテゴリタブ（script.js がボタンを並べる） -->
+      <nav id="tabs"></nav>
+
+      <!-- メニュー一覧（script.js が選んだカテゴリの料理を並べる） -->
+      <div id="menu-list"></div>
+
+      <!-- 注文一覧（script.js が注文した料理を並べる） -->
+      <section id="order-section">
+        <h2>注文一覧</h2>
+        <ul id="order-list"></ul>
+        <p id="subtotal"></p>
+
+        <!-- 会計欄 -->
+        <div id="checkout-area">
+          <span>人数：<strong id="people-display"></strong></span>
+          <button id="people-change">人数を変える</button>
+          <button id="checkout-button">会計する</button>
+        </div>
+        <p id="checkout-error" class="error"></p>
+      </section>
+
+      <!-- 保存に失敗したときのメッセージ -->
+      <p id="storage-error" class="error"></p>
+    </main>
+
+    <footer>
+      <button id="history-button">注文履歴</button>
+    </footer>
+  </div>
+
+  <!-- 会計の結果を出す窓（最初は隠しておく） -->
+  <div id="receipt" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>お会計</h2>
+      <div id="receipt-detail"></div>
+      <p class="thanks">ありがとうございました！</p>
+      <div class="overlay-buttons">
+        <button id="receipt-close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 注文履歴の画面（画面の上に重ねて出す。最初は隠しておく） -->
+  <div id="history" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>注文履歴</h2>
+      <div id="history-list"></div>
+      <div class="overlay-buttons">
+        <button id="history-clear" class="danger-button">履歴をすべて消す</button>
+        <button id="history-close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- menu.js（データ）を先に読み込んでから script.js（動き）を読み込む -->
+  <script src="menu.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

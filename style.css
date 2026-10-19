@@ -1,0 +1,519 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background-color: #fdf8f2;
+  color: #333;
+}
+
+/* hidden を付けた部品は必ず隠す */
+[hidden] {
+  display: none !important;
+}
+
+/* ようこそ画面（画面いっぱいに大きく表示） */
+#welcome {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #b5482d;
+  color: white;
+  text-align: center;
+  cursor: pointer;
+}
+
+#welcome h1 {
+  margin: 0;
+  font-size: 56px;
+}
+
+#welcome p {
+  margin: 16px 0 0;
+  font-size: 32px;
+}
+
+#welcome .welcome-hint {
+  margin-top: 48px;
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+header {
+  background-color: #b5482d;
+  color: white;
+  padding: 16px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+header p {
+  margin: 4px 0 0;
+}
+
+main {
+  padding: 16px;
+}
+
+/* お客さま情報・おすすめ欄 */
+#guest-section {
+  margin-bottom: 16px;
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#guest-section h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+#age {
+  width: 4em;
+  padding: 6px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #777;
+}
+
+/* お腹の空き具合・好みの選択 */
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.choice-title {
+  font-weight: bold;
+  min-width: 7em;
+}
+
+#recommend-button {
+  margin-top: 16px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background-color: #b5482d;
+  color: white;
+  font-size: 16px;
+}
+
+/* おすすめの結果 */
+#recommend-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.recommend-item {
+  border: 2px solid #f0c9a0;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #fffaf3;
+}
+
+.recommend-item h3 {
+  margin: 4px 0;
+  font-size: 17px;
+}
+
+.recommend-reason {
+  margin: 0;
+  font-size: 12px;
+  color: #b5482d;
+}
+
+.recommend-item .order-button {
+  margin-top: 8px;
+}
+
+/* お酒の印 */
+.alcohol-mark {
+  display: inline-block;
+  margin: 4px 0 0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #fbe3c4;
+  color: #8a4b00;
+  font-size: 12px;
+}
+
+/* カテゴリタブ */
+#tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border: 2px solid #b5482d;
+  border-radius: 20px;
+  background-color: white;
+  color: #b5482d;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background-color: #b5482d;
+  color: white;
+}
+
+/* メニューをカード状に並べる（画面幅に合わせて列数が変わる） */
+#menu-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.menu-item {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.price {
+  margin: 8px 0 0;
+  font-weight: bold;
+}
+
+.allergen {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #777;
+}
+
+/* 数量の入力欄と「注文する」ボタン */
+.order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quantity {
+  width: 3em;
+  padding: 4px;
+  font-size: 16px;
+  text-align: center;
+}
+
+button {
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.order-button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: #b5482d;
+  color: white;
+}
+
+/* 入力ミスのときの赤い文字 */
+.error {
+  margin: 4px 0 0;
+  color: #d00;
+  font-size: 13px;
+}
+
+/* 注文一覧 */
+#order-section {
+  margin-top: 24px;
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#order-section h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+#order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.order-name {
+  flex: 1;
+}
+
+.order-price {
+  font-weight: bold;
+}
+
+.cancel-button {
+  padding: 4px 10px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+}
+
+.empty {
+  color: #777;
+}
+
+/* 小計と会計欄 */
+#subtotal {
+  margin: 12px 0 0;
+  text-align: right;
+  font-weight: bold;
+}
+
+#checkout-area {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+#people-change {
+  padding: 8px 12px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+}
+
+/* 人数入力画面 */
+#people-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+#people-screen h2 {
+  margin: 0 0 24px;
+  font-size: 32px;
+  color: #b5482d;
+}
+
+#people-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.people-button {
+  padding: 20px 0;
+  border: 2px solid #b5482d;
+  border-radius: 8px;
+  background-color: white;
+  color: #b5482d;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.people-other {
+  margin: 32px 0 8px;
+  color: #555;
+}
+
+.people-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#people-input {
+  width: 4em;
+  padding: 8px;
+  font-size: 18px;
+  text-align: center;
+}
+
+#people-ok {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  background-color: #b5482d;
+  color: white;
+  font-size: 16px;
+}
+
+#checkout-button {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  background-color: #b5482d;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#checkout-error {
+  text-align: right;
+}
+
+/* 会計の結果 */
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.receipt-table td {
+  padding: 8px 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.receipt-table td:last-child {
+  text-align: right;
+}
+
+.receipt-total td {
+  font-size: 20px;
+  font-weight: bold;
+  color: #b5482d;
+}
+
+.thanks {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.history-checkout {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+/* フッター（注文履歴） */
+footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid #ddd;
+}
+
+footer button {
+  padding: 10px 20px;
+  border: 2px solid #b5482d;
+  border-radius: 6px;
+  background-color: white;
+  color: #b5482d;
+}
+
+/* 画面の上に重ねて出す窓（注文履歴など） */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.overlay-box {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.overlay-box h2 {
+  margin-top: 0;
+}
+
+.overlay-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.overlay-buttons button {
+  padding: 8px 16px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+}
+
+.overlay-buttons .danger-button {
+  border-color: #d00;
+  color: #d00;
+}
+
+/* 注文履歴の1枚の伝票 */
+.history-slip {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.history-slip h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.history-date {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  color: #777;
+}
+
+.history-slip table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.history-slip th,
+.history-slip td {
+  padding: 4px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+/* 取り消した注文は灰色の取り消し線 */
+.history-slip .cancelled {
+  color: #999;
+  text-decoration: line-through;
+}
