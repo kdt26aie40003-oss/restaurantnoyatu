@@ -145,3 +145,18 @@ for (let id = 8; id <= 17; id++) {
 for (const item of menu) {
   item.toppings = toppingList[item.id] || [];
 }
+
+// 飲み放題の区分。プレミアムプランだけで飲み放題になるドリンクの id
+// （日本酒・コカレロ・チャミスル・クライナー）
+const premiumDrinkIds = [30, 33, 34, 35];
+
+// ドリンクに nomihodai（"通常" か "プレミアム"）を付ける。ドリンク以外は付けない
+for (const item of menu) {
+  if (item.category === "ドリンク") {
+    if (premiumDrinkIds.includes(item.id)) {
+      item.nomihodai = "プレミアム";
+    } else {
+      item.nomihodai = "通常";
+    }
+  }
+}

@@ -52,7 +52,11 @@ function isHappyHour() {
 }
 
 // 料理の、今のハッピーアワー割引額（1個あたり）。お酒で開催中なら100円、それ以外は0円
+// 飲み放題で0円になるドリンクには、ハッピーアワー割引をかけない
 function happyHourDiscountFor(item) {
+  if (isNomihodaiCovered(item)) {
+    return 0;
+  }
   if (item.isAlcohol && isHappyHour()) {
     return HAPPY_HOUR_DISCOUNT;
   }
@@ -95,7 +99,243 @@ function updateHappyHour() {
 // 確認用の時刻指定を変えたときの動き
 function onTestTimeChange() {
   lastHappyHour = null; // 必ずメニューとカートを表示し直す
+  lastNomihodaiState = null;
   updateHappyHour();
+  updateNomihodai();
+}
+
+// 確認用の早送り：minutes 分だけ時刻を先に進める
+function fastForward(minutes) {
+  timeOffsetMinutes += minutes;
+  showOffset();
+  onTestTimeChange();
+}
+
+// 確認用の早送りを元に戻す
+function resetOffset() {
+  timeOffsetMinutes = 0;
+  showOffset();
+  onTestTimeChange();
+}
+
+// 早送りした分を表示する
+function showOffset() {
+  let text = "";
+  if (timeOffsetMinutes > 0) {
+    text = `（今は ${timeOffsetMinutes}分 進めています）`;
+  }
+  document.getElementById("offset-note").textContent = text;
+}
+
+// ===== 飲み放題 =====
+
+// 料金（1人あたり・税抜）。NOMIHODAI_PRICES[時間][プラン]
+const NOMIHODAI_PRICES = {
+  90: { "通常": 1500, "プレミアム": 2000, "ソフトドリンク": 800 },
+  120: { "通常": 2000, "プレミアム": 2500, "ソフトドリンク": 1000 },
+};
+const LAST_ORDER_BEFORE = 30; // 終了の30分前がラストオーダー
+
+// 飲み放題の今の状態を返す
+// "none"（申し込んでいない）／"active"（注文できる）／"lastorder"（ラストオーダー後）／"ended"（終了）
+function nomihodaiState() {
+  const n = slip.nomihodai;
+  if (!n) {
+    return "none";
+  }
+  const now = getNow().getTime();
+  if (now >= n.endsAt) {
+    return "ended";
+  }
+  if (now >= n.lastOrderAt) {
+    return "lastorder";
+  }
+  return "active";
+}
+
+// 料理が、今の飲み放題で0円になるかどうか（ラストオーダーまでのあいだだけ）
+// ソフトドリンクはどのプランでも対象。お酒は大人のプランの対象なら対象
+function isNomihodaiCovered(item) {
+  if (nomihodaiState() !== "active" || item.category !== "ドリンク") {
+    return false;
+  }
+  if (!item.isAlcohol) {
+    return true;
+  }
+  // 全員20歳未満のときは、お酒は対象にならない
+  const n = slip.nomihodai;
+  if (n.people - n.minors <= 0) {
+    return false;
+  }
+  return n.plan === "プレミアム" || item.nomihodai === "通常";
+}
+
+// 「1:23:45」のように、ミリ秒を 時:分:秒 の文字にする
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+// 画面上部の「飲み放題（通常・90分）残り 1:23:45」を表示し直す（1秒ごとに呼ぶ）
+// 状態が変わったとき（ラストオーダーや終了）は、メニューとカートの値段も表示し直す
+let lastNomihodaiState = null;
+function updateNomihodai() {
+  const banner = document.getElementById("nh-banner");
+  const state = nomihodaiState();
+  const n = slip.nomihodai;
+
+  if (state === "none") {
+    banner.hidden = true;
+  } else {
+    const left = n.endsAt - getNow().getTime();
+    let text = `🍻 飲み放題（${n.plan}・${n.course}分）残り ${formatDuration(left)}`;
+    if (state === "lastorder") {
+      text += "　ラストオーダーの時間を過ぎました";
+    } else if (state === "ended") {
+      text = "🍻 飲み放題は終了しました";
+    }
+    banner.textContent = text;
+    banner.hidden = false;
+  }
+
+  // 申し込みボタンは、1つの伝票で1回だけ
+  const applyButton = document.getElementById("nomihodai-apply");
+  applyButton.disabled = state !== "none";
+  if (state === "none") {
+    applyButton.textContent = "🍻 飲み放題を申し込む";
+  } else {
+    applyButton.textContent = "🍻 飲み放題 申し込み済み";
+  }
+
+  // 飲み放題を申し込んだら、人数は変えられない
+  document.getElementById("people-change").disabled = state !== "none";
+
+  if (state !== lastNomihodaiState) {
+    lastNomihodaiState = state;
+    showMenu();
+    showCart();
+  }
+}
+
+// 申し込み画面の入力を読み取って、料金を計算する
+// 戻り値：{ error: エラーメッセージ（なければ ""）, ...申し込みの内容 }
+function readNomihodaiForm() {
+  const course = Number(readRadio("nh-course"));
+  const people = toInteger(document.getElementById("nh-people").value);
+  const minors = toInteger(document.getElementById("nh-minors").value);
+
+  if (people === null || people < 1 || people > 20) {
+    return { error: "人数は1〜20の整数で入力してください" };
+  }
+  if (minors === null || minors < 0 || minors > people) {
+    return { error: `20歳未満の人数は0〜${people}の整数で入力してください` };
+  }
+
+  const adults = people - minors;
+  const plan = readRadio("nh-plan");
+  // 全員20歳未満なら、大人のプランは使わない
+  let adultPrice = 0;
+  if (adults > 0) {
+    adultPrice = NOMIHODAI_PRICES[course][plan];
+  }
+  const minorPrice = NOMIHODAI_PRICES[course]["ソフトドリンク"];
+  return {
+    error: "",
+    course: course,
+    plan: plan,
+    people: people,
+    minors: minors,
+    adultPrice: adultPrice,
+    minorPrice: minorPrice,
+    total: adultPrice * adults + minorPrice * minors,
+  };
+}
+
+// 申し込み画面の「大人○人×○円＋20歳未満○人×○円＝○円」を表示し直す
+function updateNomihodaiForm() {
+  const errorText = document.getElementById("nh-error");
+  const priceText = document.getElementById("nh-price");
+  const okButton = document.getElementById("nh-ok");
+  const form = readNomihodaiForm();
+
+  // 全員20歳未満ならプランは選べない（ソフトドリンク飲み放題だけ）
+  const people = toInteger(document.getElementById("nh-people").value);
+  const minors = toInteger(document.getElementById("nh-minors").value);
+  const allMinors = people !== null && minors !== null && people === minors;
+  for (const radio of document.querySelectorAll('input[name="nh-plan"]')) {
+    radio.disabled = allMinors;
+  }
+
+  if (form.error !== "") {
+    errorText.textContent = form.error;
+    priceText.textContent = "";
+    okButton.disabled = true;
+    return;
+  }
+  errorText.textContent = "";
+  okButton.disabled = false;
+
+  const adults = form.people - form.minors;
+  const parts = [];
+  if (adults > 0) {
+    parts.push(`大人${adults}人×${form.adultPrice.toLocaleString()}円（${form.plan}）`);
+  }
+  if (form.minors > 0) {
+    parts.push(`20歳未満${form.minors}人×${form.minorPrice.toLocaleString()}円（ソフトドリンク）`);
+  }
+  priceText.textContent = `${parts.join("＋")}＝${form.total.toLocaleString()}円（税抜）`;
+}
+
+// 申し込み画面を開く
+function openNomihodai() {
+  if (slip.nomihodai || slip.checkout !== null) {
+    return;
+  }
+  // 人数は、最初に決めたテーブルの人数を入れておく
+  document.getElementById("nh-people").value = slip.people === null ? "" : String(slip.people);
+  document.getElementById("nh-minors").value = "0";
+  updateNomihodaiForm();
+  document.getElementById("nomihodai").hidden = false;
+}
+
+// 申し込み画面を閉じる（何も変えない）
+function closeNomihodai() {
+  document.getElementById("nomihodai").hidden = true;
+}
+
+// 「申し込む」：飲み放題を確定して、伝票に記録する
+function applyNomihodai() {
+  const form = readNomihodaiForm();
+  if (form.error !== "" || slip.nomihodai || slip.checkout !== null) {
+    return;
+  }
+
+  // 時刻はすべて getNow() から取る。あとで計算しやすいように、ミリ秒の数で記録する
+  const start = getNow().getTime();
+  slip.nomihodai = {
+    course: form.course,
+    plan: form.plan,
+    people: form.people,
+    minors: form.minors,
+    startedAt: start,
+    lastOrderAt: start + (form.course - LAST_ORDER_BEFORE) * 60 * 1000,
+    endsAt: start + form.course * 60 * 1000,
+    adultPrice: form.adultPrice,
+    minorPrice: form.minorPrice,
+    total: form.total,
+  };
+  // 会計の人数は、飲み放題の人数にそろえる
+  slip.people = form.people;
+  document.getElementById("people-display").textContent = `${slip.people}人`;
+  saveSlips();
+
+  closeNomihodai();
+  showToast("飲み放題を申し込みました！");
+  lastNomihodaiState = null;
+  updateNomihodai();
 }
 
 // これまでの全部の伝票（1回の来店＝1枚の伝票）
@@ -131,6 +371,9 @@ function loadSlips() {
       }
       if (!Array.isArray(s.cart)) {
         s.cart = [];
+      }
+      if (s.nomihodai === undefined) {
+        s.nomihodai = null;
       }
     }
     return data;
@@ -173,6 +416,7 @@ function startNewSlip() {
     people: null, // テーブルの人数（人数入力画面で決める）
     customer: null, // お客さんの年代と性別（「おすすめを見る」で記録する）
     cart: [], // カート（「注文する」を押す前の料理）
+    nomihodai: null, // 飲み放題の申し込み（申し込みがなければ null）
     orders: [],
     checkout: null,
   };
@@ -413,9 +657,13 @@ function showMenu() {
     }
 
     // ハッピーアワー中のお酒は、元の値段に取り消し線を付けて、割引後の値段を横に出す
-    const discount = happyHourDiscountFor(item);
+    // 飲み放題の対象なら、0円で頼めることを出す
+    let discount = happyHourDiscountFor(item);
     let priceHtml = `<p class="price">${item.price}円（税抜）</p>`;
-    if (discount > 0) {
+    if (isNomihodaiCovered(item)) {
+      discount = item.price;
+      priceHtml = `<p class="price"><s class="old-price">${item.price}円</s> <span class="nh-tag">飲み放題 0円</span></p>`;
+    } else if (discount > 0) {
       priceHtml = `<p class="price"><s class="old-price">${item.price}円</s> <span class="hh-price">${item.price - discount}円</span>（税抜）</p>`;
     }
 
@@ -645,7 +893,10 @@ function makeRecommendCard(item, reason) {
 
   // ハッピーアワー中のお酒には「ハッピーアワーで100円引き」と出す
   let hhNote = "";
-  if (happyHourDiscountFor(item) > 0) {
+  // 飲み放題の対象なら「飲み放題対象」と出す
+  if (isNomihodaiCovered(item)) {
+    hhNote = '<p class="nh-tag">飲み放題対象</p>';
+  } else if (happyHourDiscountFor(item) > 0) {
     hhNote = `<p class="hh-tag">ハッピーアワーで${HAPPY_HOUR_DISCOUNT}円引き</p>`;
   }
 
@@ -756,6 +1007,18 @@ function showRecommend() {
   } else if (age >= 13) {
     drinkCandidates = DRINK_CANDIDATES.teen;
   }
+  // 飲み放題の時間内は、飲み放題の対象のドリンクを先に見る（順番はそのまま、対象を前に寄せる）
+  const covered = [];
+  const notCovered = [];
+  for (const id of drinkCandidates) {
+    const item = findMenu(id);
+    if (item !== null && isNomihodaiCovered(item)) {
+      covered.push(id);
+    } else {
+      notCovered.push(id);
+    }
+  }
+  drinkCandidates = covered.concat(notCovered);
   const drink = pickFirst(drinkCandidates, age, dislikes, usedIds);
   list.appendChild(makeRecommendCard(drink, `${age}歳のあなたにドリンク`));
 
@@ -962,10 +1225,14 @@ function showCart() {
       plusDisabled = "disabled";
     }
 
-    // 今ハッピーアワーなら、お酒は割引した値段で出す（本当の割引は「注文する」の時刻で決まる）
+    // 今ハッピーアワーなら、お酒は割引した値段で出す。飲み放題の対象なら0円で出す
+    // （本当の値段は「注文する」を押した時刻で決まる）
     const discount = cartDiscountOf(entry);
     let hhTag = "";
-    if (discount > 0) {
+    const item = findMenu(entry.menuId);
+    if (item !== null && isNomihodaiCovered(item)) {
+      hhTag = '<span class="nh-tag">飲み放題</span>';
+    } else if (discount > 0) {
       hhTag = `<span class="hh-tag">ハッピーアワー −${discount * entry.quantity}円</span>`;
     }
 
@@ -1002,11 +1269,15 @@ function showCart() {
   updateCartBadge();
 }
 
-// カートの1行の、今のハッピーアワー割引額（1個あたり）
+// カートの1行の、今の値引き額（1個あたり）
+// 飲み放題の対象なら全額（0円になる）、ハッピーアワーなら100円
 function cartDiscountOf(entry) {
   const item = findMenu(entry.menuId);
   if (item === null) {
     return 0;
+  }
+  if (isNomihodaiCovered(item)) {
+    return entry.unitPrice;
   }
   return happyHourDiscountFor(item);
 }
@@ -1046,6 +1317,9 @@ function placeOrder() {
   }
 
   // カートに入れたあとで年齢を変えたときのために、お酒の年齢確認をもう一度する
+  // あわせて、飲み放題で頼むドリンクの数を数える
+  let nomihodaiCount = 0; // 飲み放題のドリンクの数
+  let nomihodaiAlcohol = 0; // そのうちお酒の数
   for (const entry of slip.cart) {
     const item = findMenu(entry.menuId);
     if (item === null) {
@@ -1054,6 +1328,25 @@ function placeOrder() {
     const alcoholError = checkAlcohol(item);
     if (alcoholError !== "") {
       errorText.textContent = `${item.name}：${alcoholError}`;
+      return;
+    }
+    if (isNomihodaiCovered(item)) {
+      nomihodaiCount += entry.quantity;
+      if (item.isAlcohol) {
+        nomihodaiAlcohol += entry.quantity;
+      }
+    }
+  }
+
+  // 1回の注文で頼める飲み放題のドリンクは人数分まで。そのうちお酒は20歳以上の人数分まで
+  if (slip.nomihodai) {
+    const adults = slip.nomihodai.people - slip.nomihodai.minors;
+    if (nomihodaiCount > slip.nomihodai.people) {
+      errorText.textContent = `飲み放題のドリンクは、1回の注文で${slip.nomihodai.people}杯（人数分）までです`;
+      return;
+    }
+    if (nomihodaiAlcohol > adults) {
+      errorText.textContent = `飲み放題のお酒は、1回の注文で${adults}杯（20歳以上の人数分）までです`;
       return;
     }
   }
@@ -1145,13 +1438,21 @@ function addOrder(item, quantity, toppings) {
   // 記録するトッピングは、id・名前・値段だけにする
   const savedToppings = saveToppings(toppings);
 
+  // 飲み放題の対象なら0円にする（注文した時刻で決める）
+  const nomihodai = isNomihodaiCovered(item);
+  let unitPrice = item.price + toppingTotal(savedToppings); // 料理＋トッピングの1個あたりの値段
+  if (nomihodai) {
+    unitPrice = 0;
+  }
+
   const order = {
     orderId: slip.orders.length + 1,
     menuId: item.id,
     name: item.name,
     price: item.price,
     toppings: savedToppings,
-    unitPrice: item.price + toppingTotal(savedToppings), // 料理＋トッピングの1個あたりの値段
+    unitPrice: unitPrice,
+    nomihodai: nomihodai, // 飲み放題で頼んだドリンクなら true
     // ハッピーアワー割引（1個あたり）。注文した時刻で決め、あとで時間が過ぎても変えない
     hhDiscount: happyHourDiscountFor(item),
     quantity: quantity,
@@ -1171,6 +1472,10 @@ function changeQuantity(orderId, change) {
   }
   for (const order of slip.orders) {
     if (order.orderId === orderId && order.status === "注文済み") {
+      // 飲み放題のドリンクは増やせない（減らすのはよい）
+      if (order.nomihodai === true && change > 0) {
+        continue;
+      }
       const next = order.quantity + change;
       // 数量は1〜10の範囲だけ
       if (next >= 1 && next <= 10) {
@@ -1210,14 +1515,17 @@ function showOrders() {
     if (order.quantity <= 1) {
       minusDisabled = "disabled";
     }
+    // 飲み放題のドリンクは、人数分までの決まりを守るため「＋」で増やせないようにする
     let plusDisabled = "";
-    if (order.quantity >= 10) {
+    if (order.quantity >= 10 || order.nomihodai === true) {
       plusDisabled = "disabled";
     }
 
-    // ハッピーアワーで注文したお酒には、割引の印を付ける
+    // ハッピーアワーで注文したお酒には割引の印、飲み放題のドリンクには「飲み放題」の印を付ける
     let hhTag = "";
-    if (hhDiscountOf(order) > 0) {
+    if (order.nomihodai === true) {
+      hhTag = '<span class="nh-tag">飲み放題</span>';
+    } else if (hhDiscountOf(order) > 0) {
       hhTag = `<span class="hh-tag">ハッピーアワー −${hhDiscountOf(order) * order.quantity}円</span>`;
     }
 
@@ -1251,6 +1559,9 @@ function showOrders() {
 
   // 今の小計（税抜）も表示する。ハッピーアワーの割引があれば、その行も出す
   let subtotalHtml = `小計（税抜）：${calcSubtotal().toLocaleString()}円`;
+  if (slip.nomihodai) {
+    subtotalHtml += `<br>飲み放題（${slip.nomihodai.plan}・${slip.nomihodai.course}分）：${slip.nomihodai.total.toLocaleString()}円`;
+  }
   const discount = calcHappyHourDiscount();
   if (discount > 0) {
     subtotalHtml += `<br><span class="discount-text">ハッピーアワー割引：−${discount.toLocaleString()}円</span>`;
@@ -1290,7 +1601,15 @@ function calcSubtotal(targetSlip) {
 
 // 会計の金額を計算する（README の「会計」の順番どおり）
 function calcCheckout(people) {
-  const subtotal = calcSubtotal();
+  const orderSubtotal = calcSubtotal(); // 料理・ドリンクの合計
+  // 飲み放題の料金は小計に足す（申し込みがなければ0円）
+  let nomihodai = null;
+  let nomihodaiTotal = 0;
+  if (slip.nomihodai) {
+    nomihodai = slip.nomihodai;
+    nomihodaiTotal = slip.nomihodai.total;
+  }
+  const subtotal = orderSubtotal + nomihodaiTotal;
   const hhDiscount = calcHappyHourDiscount(); // ハッピーアワー割引
   const otoshi = 300 * people; // お通し代：1人300円
   // 消費税：割引したあとの金額にかける。10%で1円未満は切り捨て（小数の計算誤差が出ないよう、10で割って切り捨てる）
@@ -1299,6 +1618,8 @@ function calcCheckout(people) {
   const perPerson = Math.ceil(total / people); // 1人あたり：1円未満は切り上げ
   return {
     people: people,
+    orderSubtotal: orderSubtotal,
+    nomihodai: nomihodai,
     subtotal: subtotal,
     hhDiscount: hhDiscount,
     otoshi: otoshi,
@@ -1310,6 +1631,19 @@ function calcCheckout(people) {
 
 // 会計の内訳の表（HTML）を作る。確認画面と会計の結果の両方で使う
 function checkoutTable(c) {
+  // 飲み放題を申し込んだ会計だけ、料理・ドリンクの合計と飲み放題の行を出す
+  let nomihodaiRows = "";
+  if (c.nomihodai) {
+    const n = c.nomihodai;
+    const adults = n.people - n.minors;
+    nomihodaiRows = `<tr><td>料理・ドリンク</td><td>${c.orderSubtotal.toLocaleString()}円</td></tr>`;
+    if (adults > 0) {
+      nomihodaiRows += `<tr><td>飲み放題（${n.plan}・${n.course}分）大人 ${adults}人 × ${n.adultPrice.toLocaleString()}円</td><td>${(adults * n.adultPrice).toLocaleString()}円</td></tr>`;
+    }
+    if (n.minors > 0) {
+      nomihodaiRows += `<tr><td>ソフトドリンク飲み放題 ${n.minors}人 × ${n.minorPrice.toLocaleString()}円</td><td>${(n.minors * n.minorPrice).toLocaleString()}円</td></tr>`;
+    }
+  }
   // ハッピーアワー割引がある会計だけ、その行を出す（古いデータには hhDiscount がない）
   let discountRow = "";
   if (c.hhDiscount > 0) {
@@ -1317,6 +1651,7 @@ function checkoutTable(c) {
   }
   return `
     <table class="receipt-table">
+      ${nomihodaiRows}
       <tr><td>小計</td><td>${c.subtotal.toLocaleString()}円</td></tr>
       ${discountRow}
       <tr><td>お通し代（300円 × ${c.people}人）</td><td>${c.otoshi.toLocaleString()}円</td></tr>
@@ -1345,7 +1680,8 @@ function checkout() {
       activeCount++;
     }
   }
-  if (activeCount === 0) {
+  // 飲み放題だけ申し込んで何も頼んでいないときは、飲み放題の料金だけで会計できる
+  if (activeCount === 0 && !slip.nomihodai) {
     errorText.textContent = "注文がありません";
     return;
   }
@@ -1399,6 +1735,7 @@ function confirmCheckout() {
   startNewSlip();
   showOrders();
   showCart();
+  updateNomihodai();
   // 前のお客さんの年齢・おすすめも消しておく
   document.getElementById("age").value = "";
   checkAgeInput();
@@ -1437,7 +1774,8 @@ function openSummary(targetSlip) {
       toppingIds.push(topping.id);
     }
     toppingIds.sort();
-    const key = `${order.menuId}|${toppingIds.join(",")}`;
+    // 飲み放題（0円）で頼んだものと、ふつうに頼んだものは別の行にする
+    const key = `${order.menuId}|${toppingIds.join(",")}|${order.nomihodai === true}`;
 
     if (groups[key] === undefined) {
       const item = findMenu(order.menuId);
@@ -1471,7 +1809,7 @@ function openSummary(targetSlip) {
       }
       rows += `
         <tr>
-          <td>${g.order.name}</td>
+          <td>${g.order.name}${g.order.nomihodai === true ? "（飲み放題）" : ""}</td>
           <td>${toppingText}</td>
           <td>${g.quantity}</td>
           <td>${g.amount.toLocaleString()}円</td>
@@ -1598,6 +1936,7 @@ function clearHistory() {
   startNewSlip();
   showOrders();
   showCart();
+  updateNomihodai();
   showPage("guest");
   closeHistory();
   showWelcome();
@@ -1694,9 +2033,11 @@ showCart();
 showPeopleButtons();
 showPage("guest");
 updateHappyHour();
+updateNomihodai();
 
-// ハッピーアワーの表示（あと○分）は1分ごとに更新する
+// ハッピーアワーの表示（あと○分）は1分ごと、飲み放題の残り時間は1秒ごとに更新する
 setInterval(updateHappyHour, 60 * 1000);
+setInterval(updateNomihodai, 1000);
 
 // ボタンを押したときの動きを登録する
 document.getElementById("welcome").addEventListener("click", startMenu);
@@ -1725,6 +2066,20 @@ document.getElementById("cart-more").addEventListener("click", function () {
 document.getElementById("place-order").addEventListener("click", placeOrder);
 document.getElementById("test-time-on").addEventListener("change", onTestTimeChange);
 document.getElementById("test-time").addEventListener("input", onTestTimeChange);
+document.getElementById("forward-10").addEventListener("click", function () {
+  fastForward(10);
+});
+document.getElementById("forward-30").addEventListener("click", function () {
+  fastForward(30);
+});
+document.getElementById("forward-reset").addEventListener("click", resetOffset);
+document.getElementById("nomihodai-apply").addEventListener("click", openNomihodai);
+document.getElementById("nh-cancel").addEventListener("click", closeNomihodai);
+document.getElementById("nh-ok").addEventListener("click", applyNomihodai);
+for (const input of document.querySelectorAll("#nomihodai input")) {
+  input.addEventListener("input", updateNomihodaiForm);
+  input.addEventListener("change", updateNomihodaiForm);
+}
 document.getElementById("checkout-button").addEventListener("click", checkout);
 document.getElementById("confirm-back").addEventListener("click", closeConfirm);
 document.getElementById("confirm-ok").addEventListener("click", confirmCheckout);

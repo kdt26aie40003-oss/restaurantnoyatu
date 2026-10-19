@@ -45,6 +45,9 @@
     <!-- ハッピーアワー開催中だけ出すお知らせ（script.js が1分ごとに更新） -->
     <div id="hh-banner" hidden></div>
 
+    <!-- 飲み放題の残り時間（申し込んだあとだけ出す。script.js が1秒ごとに更新） -->
+    <div id="nh-banner" hidden></div>
+
     <main>
       <!-- ① お客さま情報・おすすめのページ -->
       <div id="page-guest" class="page">
@@ -107,6 +110,10 @@
 
       <!-- ② メニューのページ -->
       <div id="page-menu" class="page">
+      <!-- 飲み放題の申し込みボタン（1つの伝票で1回だけ） -->
+      <div class="nomihodai-row">
+        <button id="nomihodai-apply">🍻 飲み放題を申し込む</button>
+      </div>
       <!-- 検索欄（1文字打つごとに結果が変わる） -->
       <div id="search-area">
         <input type="search" id="search" placeholder="🔍 料理を探す（例：からあげ、さっぱり、ビール）">
@@ -179,6 +186,12 @@
         <label><input type="checkbox" id="test-time-on"> 確認用：時刻を指定する</label>
         <input type="time" id="test-time">
         <p id="test-time-error" class="error"></p>
+        <div class="forward-row">
+          <button id="forward-10">確認用：10分進める</button>
+          <button id="forward-30">確認用：30分進める</button>
+          <button id="forward-reset">時間を元に戻す</button>
+        </div>
+        <p id="offset-note" class="note"></p>
       </div>
     </footer>
 
@@ -187,6 +200,43 @@
 
     <!-- 「カートに入れました」などを数秒だけ出す小さなお知らせ -->
     <div id="toast" hidden></div>
+  </div>
+
+  <!-- 飲み放題の申し込み画面（最初は隠しておく） -->
+  <div id="nomihodai" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>🍻 飲み放題の申し込み</h2>
+      <table class="nh-price-table">
+        <tr><th>プラン（1人・税抜）</th><th>90分</th><th>120分</th></tr>
+        <tr><td>通常（日本酒・コカレロ・チャミスル・クライナー以外）</td><td>1,500円</td><td>2,000円</td></tr>
+        <tr><td>プレミアム（すべてのドリンク）</td><td>2,000円</td><td>2,500円</td></tr>
+        <tr><td>ソフトドリンク（20歳未満の方。お酒以外）</td><td>800円</td><td>1,000円</td></tr>
+      </table>
+
+      <div class="choice-row">
+        <span class="choice-title">時間</span>
+        <label><input type="radio" name="nh-course" value="90" checked> 90分</label>
+        <label><input type="radio" name="nh-course" value="120"> 120分</label>
+      </div>
+      <div class="choice-row">
+        <span class="choice-title">プラン</span>
+        <label><input type="radio" name="nh-plan" value="通常" checked> 通常</label>
+        <label><input type="radio" name="nh-plan" value="プレミアム"> プレミアム</label>
+      </div>
+      <div class="choice-row">
+        <label>人数 <input type="text" id="nh-people" class="nh-number" inputmode="numeric"> 人</label>
+        <label>そのうち20歳未満 <input type="text" id="nh-minors" class="nh-number" inputmode="numeric" value="0"> 人</label>
+      </div>
+      <p class="note">テーブル全員が同じ時間・同じプランに入ります。20歳未満の方は自動でソフトドリンク飲み放題になります。ラストオーダーは終了の30分前です。</p>
+
+      <p id="nh-price" class="nh-price"></p>
+      <p id="nh-error" class="error"></p>
+      <p class="warning">申し込み後は取り消せません</p>
+      <div class="overlay-buttons">
+        <button id="nh-cancel">戻る</button>
+        <button id="nh-ok" class="primary-button">申し込む</button>
+      </div>
+    </div>
   </div>
 
   <!-- 会計前の確認画面（最初は隠しておく） -->

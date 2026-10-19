@@ -501,6 +501,88 @@ footer {
   color: #d00;
 }
 
+/* 飲み放題 */
+#nh-banner {
+  padding: 10px 16px;
+  background-color: #4a6fa5;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+}
+
+.nh-tag {
+  display: inline-block;
+  margin: 4px 0 0 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background-color: #4a6fa5;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.nomihodai-row {
+  margin-bottom: 12px;
+  text-align: right;
+}
+
+#nomihodai-apply {
+  padding: 8px 16px;
+  border: 2px solid #4a6fa5;
+  border-radius: 6px;
+  background-color: white;
+  color: #4a6fa5;
+  font-weight: bold;
+}
+
+#nomihodai-apply:disabled,
+#people-change:disabled {
+  border-color: #ccc;
+  color: #aaa;
+  cursor: default;
+}
+
+.nh-price-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.nh-price-table th,
+.nh-price-table td {
+  padding: 4px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.nh-number {
+  width: 3em;
+  padding: 4px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.nh-price {
+  margin: 12px 0 0;
+  font-weight: bold;
+  color: #4a6fa5;
+}
+
+.forward-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.forward-row button {
+  padding: 4px 10px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 13px;
+}
+
 footer button {
   padding: 10px 20px;
   border: 2px solid #b5482d;
@@ -513,6 +595,7 @@ footer button {
 .overlay {
   position: fixed;
   inset: 0;
+  z-index: 30; /* 上に固定したページのタブより手前に出す */
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
