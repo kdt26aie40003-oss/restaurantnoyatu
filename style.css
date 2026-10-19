@@ -110,8 +110,21 @@ main {
   font-size: 16px;
 }
 
+.choice-title small {
+  font-weight: normal;
+  font-size: 12px;
+  color: #777;
+}
+
 /* おすすめの結果 */
-#recommend-list {
+.recommend-heading {
+  margin: 20px 0 0;
+  font-size: 17px;
+  color: #b5482d;
+}
+
+#recommend-list,
+#popular-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;

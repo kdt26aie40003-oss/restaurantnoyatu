@@ -43,6 +43,14 @@
         <p class="note">お酒を注文するときは、年齢の入力が必要です（20歳未満の方はお酒を注文できません）</p>
 
         <div class="choice-row">
+          <span class="choice-title">性別</span>
+          <label><input type="radio" name="gender" value="男性"> 男性</label>
+          <label><input type="radio" name="gender" value="女性"> 女性</label>
+          <label><input type="radio" name="gender" value="その他"> その他</label>
+          <label><input type="radio" name="gender" value="答えない" checked> 答えない</label>
+        </div>
+
+        <div class="choice-row">
           <span class="choice-title">お腹の空き具合</span>
           <label><input type="radio" name="hunger" value="ぺこぺこ"> ぺこぺこ</label>
           <label><input type="radio" name="hunger" value="ふつう" checked> ふつう</label>
@@ -50,17 +58,35 @@
         </div>
 
         <div class="choice-row">
-          <span class="choice-title">好み</span>
-          <label><input type="radio" name="taste" value="さっぱり" checked> さっぱり</label>
-          <label><input type="radio" name="taste" value="こってり"> こってり</label>
-          <label><input type="radio" name="taste" value="甘いもの"> 甘いもの</label>
+          <span class="choice-title">好み<small>（いくつでも）</small></span>
+          <label><input type="checkbox" name="taste" value="さっぱり"> さっぱり</label>
+          <label><input type="checkbox" name="taste" value="こってり"> こってり</label>
+          <label><input type="checkbox" name="taste" value="甘いもの"> 甘いもの</label>
+        </div>
+
+        <div class="choice-row">
+          <span class="choice-title">苦手な食材<small>（いくつでも）</small></span>
+          <label><input type="checkbox" name="dislike" value="ねぎ"> ねぎ</label>
+          <label><input type="checkbox" name="dislike" value="内臓"> 内臓（レバー・砂肝・ぼんじり）</label>
+          <label><input type="checkbox" name="dislike" value="魚介"> 魚介（えび・かに・たこ）</label>
+          <label><input type="checkbox" name="dislike" value="トマト"> トマト</label>
+          <label><input type="checkbox" name="dislike" value="わさび"> わさび</label>
+          <label><input type="checkbox" name="dislike" value="梅"> 梅</label>
         </div>
 
         <button id="recommend-button">おすすめを見る</button>
         <p id="recommend-error" class="error"></p>
 
-        <!-- おすすめの結果（script.js が3品を並べる） -->
-        <div id="recommend-list"></div>
+        <!-- あなたへのおすすめ（ルールで選ぶ。script.js が並べる） -->
+        <div id="recommend-result" hidden>
+          <h3 class="recommend-heading">あなたへのおすすめ</h3>
+          <div id="recommend-list"></div>
+
+          <!-- 同じ年代・性別のお客さんに人気（注文データで選ぶ） -->
+          <h3 id="popular-heading" class="recommend-heading"></h3>
+          <p id="popular-note" class="note"></p>
+          <div id="popular-list"></div>
+        </div>
       </section>
 
       <!-- カテゴリタブ（script.js がボタンを並べる） -->
