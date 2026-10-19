@@ -98,3 +98,50 @@ const menu = [
   { id: 45, name: "杏仁豆腐", price: 350, category: "デザート", allergens: ["乳"], isAlcohol: false, dislikeTags: [],
     yomi: "あんにんどうふ", keywords: ["杏仁", "甘い", "あまい", "中華"] },
 ];
+
+// トッピングのデータ（price は税抜の追加料金・円、allergens はトッピングに含まれるアレルギー）
+// キーは料理の id。ここにない料理はトッピングなし
+const toppingList = {
+  // 鶏白湯ラーメン
+  22: [
+    { id: "ajitama", name: "味玉", price: 100, allergens: ["卵"] },
+    { id: "negimashi", name: "ねぎ増し", price: 50, allergens: [] },
+    { id: "nori", name: "のり", price: 50, allergens: [] },
+  ],
+  // 親子丼
+  25: [
+    { id: "ranou", name: "卵黄のせ", price: 50, allergens: ["卵"] },
+    { id: "negimashi", name: "ねぎ増し", price: 50, allergens: [] },
+  ],
+  // 冷奴
+  3: [
+    { id: "negimashi", name: "ねぎ増し", price: 30, allergens: [] },
+    { id: "katsuobushi", name: "かつお節", price: 0, allergens: [] },
+  ],
+  // 鶏の唐揚げ
+  18: [
+    { id: "tartar", name: "タルタルソース", price: 80, allergens: ["卵"] },
+    { id: "lemon", name: "レモン", price: 0, allergens: [] },
+  ],
+  // フライドポテト
+  24: [
+    { id: "cheese", name: "チーズ", price: 100, allergens: ["乳"] },
+  ],
+  // バニラアイス
+  41: [
+    { id: "choco", name: "チョコソース", price: 50, allergens: ["乳"] },
+  ],
+};
+
+// 焼き鳥（もも〜うずら卵の10品）は、どれも「ねぎ追加」と「七味」を選べる
+for (let id = 8; id <= 17; id++) {
+  toppingList[id] = [
+    { id: "negi", name: "ねぎ追加", price: 30, allergens: [] },
+    { id: "shichimi", name: "七味", price: 0, allergens: [] },
+  ];
+}
+
+// 各料理に toppings（トッピングの配列）を付ける。ない料理は空の配列
+for (const item of menu) {
+  item.toppings = toppingList[item.id] || [];
+}

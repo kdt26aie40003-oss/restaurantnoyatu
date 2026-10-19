@@ -560,9 +560,17 @@ footer button {
 }
 
 .allergy-title {
-  margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: bold;
+  cursor: pointer;
+}
+
+#allergy-count {
+  color: #b5482d;
+}
+
+#allergy-area .note {
+  margin: 4px 0 8px;
 }
 
 #allergy-filter {
@@ -602,6 +610,287 @@ footer button {
   color: #b5482d;
 }
 
+/* トッピング */
+.topping-area {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: #fdf8f2;
+}
+
+.topping-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.topping-option {
+  display: block;
+  font-size: 14px;
+}
+
+.topping-allergen {
+  font-size: 12px;
+  color: #555;
+}
+
+/* アレルギーの絞り込みで選べないトッピングはグレーにする */
+.topping-disabled {
+  color: #aaa;
+}
+
+.topping-disabled .topping-allergen {
+  color: #aaa;
+}
+
+/* カードの「（料理＋トッピング）× 数量」の金額 */
+.card-total {
+  margin: 6px 0 0;
+  font-size: 13px;
+  text-align: right;
+  color: #555;
+}
+
+/* 注文一覧の「−」「＋」 */
+.quantity-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.minus-button,
+.plus-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #b5482d;
+  border-radius: 50%;
+  background-color: white;
+  color: #b5482d;
+  font-weight: bold;
+}
+
+.minus-button:disabled,
+.plus-button:disabled {
+  border-color: #ddd;
+  color: #ccc;
+  cursor: default;
+}
+
+.order-quantity {
+  min-width: 1.5em;
+  text-align: center;
+}
+
+/* 注文まとめボタン */
+.summary-button-row {
+  text-align: right;
+  margin-top: 8px;
+}
+
+#summary-button {
+  padding: 6px 14px;
+  border: 1px solid #b5482d;
+  border-radius: 6px;
+  background-color: white;
+  color: #b5482d;
+}
+
+/* 会計前の確認画面 */
+.confirm-orders {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.confirm-orders td {
+  padding: 6px 4px;
+  border-bottom: 1px dashed #ddd;
+}
+
+.confirm-orders td:last-child {
+  text-align: right;
+}
+
+.warning {
+  margin: 12px 0 0;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: #fff1f0;
+  color: #d00;
+  font-size: 14px;
+  text-align: center;
+}
+
+.overlay-buttons .primary-button {
+  border: none;
+  background-color: #b5482d;
+  color: white;
+  font-weight: bold;
+}
+
+/* 注文まとめ */
+#summary-detail h3 {
+  margin: 12px 0 4px;
+  font-size: 16px;
+  color: #b5482d;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.summary-table td:nth-child(3),
+.summary-table td:nth-child(4) {
+  text-align: right;
+}
+
+.summary-total {
+  margin: 16px 0 0;
+  font-weight: bold;
+  text-align: right;
+}
+
+/* ページを切り替えるタブ（スクロールしても画面の上に固定） */
+#page-tabs {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  display: flex;
+  background-color: white;
+  border-bottom: 2px solid #b5482d;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.page-tab {
+  flex: 1;
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 4px solid transparent;
+  background-color: white;
+  color: #555;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.page-tab.active {
+  border-bottom-color: #b5482d;
+  color: #b5482d;
+  background-color: #fdf1ec;
+}
+
+/* カートのタブに付ける数（カートが空のときは出さない） */
+.badge {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background-color: #b5482d;
+  color: white;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.badge:empty {
+  display: none;
+}
+
+/* 「メニューを見る ▶」などの次へ進むボタン */
+.next-row {
+  text-align: right;
+  margin-top: 16px;
+}
+
+.next-button {
+  padding: 10px 20px;
+  border: 2px solid #b5482d;
+  border-radius: 6px;
+  background-color: white;
+  color: #b5482d;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* カートのページ */
+.panel {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+#cart-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+#cart-subtotal {
+  margin: 12px 0 0;
+  text-align: right;
+  font-weight: bold;
+}
+
+.cart-buttons {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+#cart-more {
+  padding: 10px 16px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+}
+
+#place-order {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 6px;
+  background-color: #b5482d;
+  color: white;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+#order-section {
+  margin-top: 0;
+}
+
+/* 「カートに入れました」などのお知らせ */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 12px 20px;
+  border-radius: 24px;
+  background-color: rgba(40, 40, 40, 0.9);
+  color: white;
+  font-size: 15px;
+  text-align: center;
+}
+
 /* スマホの固定バー（パソコンでは出さない） */
 #mobile-bar {
   display: none;
@@ -614,6 +903,44 @@ footer button {
   #recommend-list,
   #popular-list {
     grid-template-columns: 1fr;
+  }
+
+  /* ヘッダーは小さくして、画面を広く使う */
+  header {
+    padding: 8px;
+  }
+
+  header h1 {
+    font-size: 20px;
+  }
+
+  header p {
+    display: none;
+  }
+
+  main {
+    padding: 12px;
+  }
+
+  /* 選択肢の見出しは1行使い、選択肢はその下に並べる */
+  .choice-row {
+    gap: 0 16px;
+  }
+
+  .choice-title {
+    flex-basis: 100%;
+  }
+
+  /* アレルギーの見出しも押しやすい高さにする（▶の印を残すため display は変えない） */
+  .allergy-title {
+    padding: 12px 0;
+    font-size: 16px;
+  }
+
+  /* ページのタブは4つが1行に収まるように文字を小さめにする */
+  .page-tab {
+    font-size: 13px;
+    padding: 10px 2px;
   }
 
   /* カテゴリタブは折り返さず、横にスクロールできるようにする */
@@ -646,6 +973,29 @@ footer button {
 
   #allergy-clear {
     font-size: 16px;
+  }
+
+  /* トッピングも指で押しやすくする */
+  .topping-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .minus-button,
+  .plus-button {
+    width: 44px;
+  }
+
+  /* 注文一覧の1行は、料理名の下に数量・金額・取消を並べる */
+  .order-item {
+    flex-wrap: wrap;
+  }
+
+  .order-name {
+    flex-basis: 100%;
   }
 
   /* 固定バーで隠れないように、ページの一番下に余白を作る */

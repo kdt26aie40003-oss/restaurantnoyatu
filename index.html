@@ -34,8 +34,17 @@
       <p>いらっしゃいませ！</p>
     </header>
 
+    <!-- ページを切り替えるタブ（スクロールしても画面の上に固定） -->
+    <nav id="page-tabs">
+      <button class="page-tab" data-page="guest">お客さま情報</button>
+      <button class="page-tab" data-page="menu">メニュー</button>
+      <button class="page-tab" data-page="cart">カート<span id="cart-badge" class="badge"></span></button>
+      <button class="page-tab" data-page="orders">注文済み・会計</button>
+    </nav>
+
     <main>
-      <!-- お客さま情報・おすすめ欄 -->
+      <!-- ① お客さま情報・おすすめのページ -->
+      <div id="page-guest" class="page">
       <section id="guest-section">
         <h2>お客さま情報・おすすめ</h2>
         <label>年齢 <input type="text" id="age" inputmode="numeric" placeholder="例：25"> 歳</label>
@@ -88,18 +97,26 @@
           <div id="popular-list"></div>
         </div>
       </section>
+      <div class="next-row">
+        <button id="go-menu" class="next-button">メニューを見る ▶</button>
+      </div>
+      </div>
 
+      <!-- ② メニューのページ -->
+      <div id="page-menu" class="page">
       <!-- 検索欄（1文字打つごとに結果が変わる） -->
       <div id="search-area">
         <input type="search" id="search" placeholder="🔍 料理を探す（例：からあげ、さっぱり、ビール）">
       </div>
 
       <!-- アレルギーで絞り込み（script.js がチェックボックスを並べる） -->
-      <section id="allergy-area">
-        <p class="allergy-title">アレルギーで絞り込み（チェックしたものを含む料理を隠します）</p>
+      <!-- details は、見出しを押すと開いたり閉じたりできる部品 -->
+      <details id="allergy-area">
+        <summary class="allergy-title">アレルギーで絞り込み<span id="allergy-count"></span></summary>
+        <p class="note">チェックしたものを含む料理を隠します</p>
         <div id="allergy-filter"></div>
         <button id="allergy-clear">すべて解除</button>
-      </section>
+      </details>
 
       <!-- カテゴリタブ（script.js がボタンを並べる） -->
       <nav id="tabs"></nav>
@@ -109,12 +126,32 @@
 
       <!-- メニュー一覧（script.js が料理を並べる） -->
       <div id="menu-list"></div>
+      </div>
 
-      <!-- 注文一覧（script.js が注文した料理を並べる） -->
+      <!-- ③ カートのページ（まだお店には届いていない） -->
+      <div id="page-cart" class="page">
+      <section id="cart-section" class="panel">
+        <h2>カート</h2>
+        <p class="note">「注文する」を押すまで、お店には届きません</p>
+        <ul id="cart-list"></ul>
+        <p id="cart-subtotal"></p>
+        <div class="cart-buttons">
+          <button id="cart-more">メニューに戻る</button>
+          <button id="place-order">注文する</button>
+        </div>
+        <p id="cart-error" class="error"></p>
+      </section>
+      </div>
+
+      <!-- ④ 注文したものと会計のページ -->
+      <div id="page-orders" class="page">
       <section id="order-section">
-        <h2>注文一覧</h2>
+        <h2>注文したもの</h2>
         <ul id="order-list"></ul>
         <p id="subtotal"></p>
+        <div class="summary-button-row">
+          <button id="summary-button">注文まとめ</button>
+        </div>
 
         <!-- 会計欄 -->
         <div id="checkout-area">
@@ -124,6 +161,7 @@
         </div>
         <p id="checkout-error" class="error"></p>
       </section>
+      </div>
 
       <!-- 保存に失敗したときのメッセージ -->
       <p id="storage-error" class="error"></p>
@@ -133,8 +171,24 @@
       <button id="history-button">注文履歴</button>
     </footer>
 
-    <!-- スマホだけ画面下に出す固定バー（押すと注文一覧へ） -->
+    <!-- スマホだけ画面下に出す固定バー（押すとカートのページへ） -->
     <button id="mobile-bar"></button>
+
+    <!-- 「カートに入れました」などを数秒だけ出す小さなお知らせ -->
+    <div id="toast" hidden></div>
+  </div>
+
+  <!-- 会計前の確認画面（最初は隠しておく） -->
+  <div id="confirm" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>お会計の確認</h2>
+      <div id="confirm-detail"></div>
+      <p class="warning">会計すると注文の変更や取消はできません</p>
+      <div class="overlay-buttons">
+        <button id="confirm-back">戻る</button>
+        <button id="confirm-ok" class="primary-button">この内容で会計する</button>
+      </div>
+    </div>
   </div>
 
   <!-- 会計の結果を出す窓（最初は隠しておく） -->
@@ -144,7 +198,19 @@
       <div id="receipt-detail"></div>
       <p class="thanks">ありがとうございました！</p>
       <div class="overlay-buttons">
+        <button id="receipt-summary">注文まとめ</button>
         <button id="receipt-close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 注文まとめの窓（会計の結果の窓より上に重ねるので、後ろに書く） -->
+  <div id="summary" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>注文まとめ</h2>
+      <div id="summary-detail"></div>
+      <div class="overlay-buttons">
+        <button id="summary-close">閉じる</button>
       </div>
     </div>
   </div>

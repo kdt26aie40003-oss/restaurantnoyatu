@@ -38,6 +38,9 @@ function loadSlips() {
       if (s.customer === undefined) {
         s.customer = null;
       }
+      if (!Array.isArray(s.cart)) {
+        s.cart = [];
+      }
     }
     return data;
   } catch (error) {
@@ -78,6 +81,7 @@ function startNewSlip() {
     startedAt: new Date().toLocaleString("ja-JP"),
     people: null, // テーブルの人数（人数入力画面で決める）
     customer: null, // お客さんの年代と性別（「おすすめを見る」で記録する）
+    cart: [], // カート（「注文する」を押す前の料理）
     orders: [],
     checkout: null,
   };
@@ -291,6 +295,32 @@ function showMenu() {
       categoryMark = `<p class="category-mark">${item.category}</p>`;
     }
 
+    // トッピングのチェックボックス
+    // 絞り込みでチェックしたアレルギーを含むトッピングは、選べないようにする（グレー表示）
+    let toppingHtml = "";
+    if (item.toppings.length > 0) {
+      toppingHtml = '<div class="topping-area"><p class="topping-title">トッピング</p>';
+      for (const topping of item.toppings) {
+        let disabled = "";
+        let labelClass = "topping-option";
+        if (hasFilteredAllergen(topping, filter)) {
+          disabled = "disabled";
+          labelClass += " topping-disabled";
+        }
+        let toppingAllergen = "";
+        if (topping.allergens.length > 0) {
+          toppingAllergen = ` <span class="topping-allergen">${allergenLabel(topping.allergens)}</span>`;
+        }
+        toppingHtml += `
+          <label class="${labelClass}">
+            <input type="checkbox" class="topping" value="${topping.id}" ${disabled}>
+            ${topping.name} +${topping.price}円${toppingAllergen}
+          </label>
+        `;
+      }
+      toppingHtml += "</div>";
+    }
+
     const card = document.createElement("div");
     card.className = "menu-item";
     card.innerHTML = `
@@ -299,22 +329,61 @@ function showMenu() {
       <p class="allergen">${allergenLabel(item.allergens)}</p>
       ${alcoholMark}
       <p class="price">${item.price}円（税抜）</p>
+      ${toppingHtml}
       <div class="order-row">
         <label>数量 <input type="text" class="quantity" value="1" inputmode="numeric"></label>
-        <button class="order-button">注文する</button>
+        <button class="order-button">カートに入れる</button>
       </div>
+      <p class="card-total"></p>
       <p class="error"></p>
     `;
 
-    // 「注文する」ボタンを押したときの動き
     const quantityInput = card.querySelector(".quantity");
     const errorText = card.querySelector(".error");
+    const totalText = card.querySelector(".card-total");
+
+    // カードで選んでいるトッピングを、配列にして返す
+    function selectedToppings() {
+      const result = [];
+      for (const box of card.querySelectorAll(".topping:checked")) {
+        for (const topping of item.toppings) {
+          if (topping.id === box.value) {
+            result.push(topping);
+          }
+        }
+      }
+      return result;
+    }
+
+    // カードの金額「（料理の価格＋トッピング）× 数量」を表示し直す
+    function updateCardTotal() {
+      const unitPrice = item.price + toppingTotal(selectedToppings());
+      const quantity = toInteger(quantityInput.value);
+      if (quantity === null || quantity < 1 || quantity > 10) {
+        totalText.textContent = `${unitPrice}円 × 数量`;
+        return;
+      }
+      totalText.textContent = `${unitPrice}円 × ${quantity} ＝ ${(unitPrice * quantity).toLocaleString()}円`;
+    }
+
+    // トッピングや数量が変わったら、金額を表示し直す
+    for (const box of card.querySelectorAll(".topping")) {
+      box.addEventListener("change", updateCardTotal);
+    }
+    quantityInput.addEventListener("input", updateCardTotal);
+    updateCardTotal();
+
+    // 「カートに入れる」ボタンを押したときの動き
     card.querySelector(".order-button").addEventListener("click", function () {
-      const message = tryOrder(item, quantityInput.value);
+      const message = tryOrder(item, quantityInput.value, selectedToppings());
       errorText.textContent = message;
-      // 注文できたら数量を1に戻す
+      // 注文できたら数量を1に戻し、トッピングの選択も外す
       if (message === "") {
         quantityInput.value = "1";
+        for (const box of card.querySelectorAll(".topping")) {
+          box.checked = false;
+        }
+        updateCardTotal();
       }
     });
 
@@ -331,6 +400,13 @@ function showMenu() {
     filterNote.textContent = `${hiddenCount}品を非表示にしています`;
   } else {
     filterNote.textContent = "";
+  }
+
+  // 閉じていても絞り込み中だとわかるように、見出しにチェックした数を出す
+  if (filter.length > 0) {
+    document.getElementById("allergy-count").textContent = `（${filter.length}つ選択中）`;
+  } else {
+    document.getElementById("allergy-count").textContent = "";
   }
 }
 
@@ -455,7 +531,7 @@ function pickFirst(candidateIds, age, dislikes, usedIds) {
   return null;
 }
 
-// おすすめの料理を1枚のカードにする（「注文する」ボタン付き）
+// おすすめの料理を1枚のカードにする（「カートに入れる」ボタン付き）
 // item が null のときは「条件に合う料理がありません」のカードにする
 function makeRecommendCard(item, reason) {
   const card = document.createElement("div");
@@ -473,11 +549,11 @@ function makeRecommendCard(item, reason) {
     <p class="recommend-reason">${reason}</p>
     <h3>${item.name}</h3>
     <p class="price">${item.price}円（税抜）</p>
-    <button class="order-button">注文する</button>
+    <button class="order-button">カートに入れる</button>
     <p class="error"></p>
   `;
 
-  // おすすめからは数量1で注文する（年齢確認などは tryOrder の中で行う）
+  // おすすめからは数量1でカートに入れる（年齢確認などは tryOrder の中で行う）
   const cardError = card.querySelector(".error");
   card.querySelector(".order-button").addEventListener("click", function () {
     cardError.textContent = tryOrder(item, "1");
@@ -637,45 +713,348 @@ function resetRecommend() {
   document.getElementById("recommend-result").hidden = true;
 }
 
-// 注文してよいか確かめてから、注文する
-// quantityText は数量の入力欄の文字。戻り値は、注文できなかったときのエラーメッセージ（できたら ""）
-function tryOrder(item, quantityText) {
+// お酒のときに年齢を確かめる（20歳未満の飲酒は法律で禁止）
+// 戻り値は、注文できないときのエラーメッセージ（お酒でないときや、問題ないときは ""）
+function checkAlcohol(item) {
+  if (!item.isAlcohol) {
+    return "";
+  }
+  const result = readAge();
+  if (result.error !== "") {
+    return result.error;
+  }
+  if (result.age === null) {
+    return "お酒の注文には、先に年齢を入力してください";
+  }
+  if (result.age < 20) {
+    return "20歳未満の方はお酒を注文できません";
+  }
+  return "";
+}
+
+// 注文してよいか確かめてから、カートに入れる
+// quantityText は数量の入力欄の文字、toppings は選んだトッピングの配列（なければ省略できる）
+// 戻り値は、カートに入れられなかったときのエラーメッセージ（入れられたら ""）
+function tryOrder(item, quantityText, toppings) {
+  if (toppings === undefined) {
+    toppings = [];
+  }
+
   // 数量は1〜10の整数だけ受け付ける
   const quantity = toInteger(quantityText);
   if (quantity === null || quantity < 1 || quantity > 10) {
     return "数量は1〜10の整数で入力してください";
   }
 
-  // お酒のときは年齢を確かめる（20歳未満の飲酒は法律で禁止）
-  if (item.isAlcohol) {
-    const result = readAge();
-    if (result.error !== "") {
-      return result.error;
-    }
-    if (result.age === null) {
-      return "お酒の注文には、先に年齢を入力してください";
-    }
-    if (result.age < 20) {
-      return "20歳未満の方はお酒を注文できません";
-    }
+  const alcoholError = checkAlcohol(item);
+  if (alcoholError !== "") {
+    return alcoholError;
   }
 
-  addOrder(item, quantity);
+  addToCart(item, quantity, toppings);
   return "";
 }
 
+// トッピングを、記録用に id・名前・値段だけの形にする
+function saveToppings(toppings) {
+  const saved = [];
+  for (const topping of toppings) {
+    saved.push({ id: topping.id, name: topping.name, price: topping.price });
+  }
+  return saved;
+}
+
+// 2つのトッピングの配列が、同じトッピングの組み合わせかどうか
+function sameToppings(a, b) {
+  const idsA = [];
+  for (const topping of a) {
+    idsA.push(topping.id);
+  }
+  const idsB = [];
+  for (const topping of b) {
+    idsB.push(topping.id);
+  }
+  return idsA.sort().join(",") === idsB.sort().join(",");
+}
+
+// カートに料理を入れる
+// 同じ料理・同じトッピングがもうカートにあれば、数量を足す（合わせて10個まで）
+function addToCart(item, quantity, toppings) {
+  const savedToppings = saveToppings(toppings);
+
+  let merged = false;
+  for (const entry of slip.cart) {
+    if (entry.menuId === item.id && sameToppings(entry.toppings, savedToppings) && entry.quantity + quantity <= 10) {
+      entry.quantity += quantity;
+      merged = true;
+      break;
+    }
+  }
+
+  if (!merged) {
+    // カートの番号は、今までの一番大きい番号 + 1
+    let maxId = 0;
+    for (const entry of slip.cart) {
+      if (entry.cartId > maxId) {
+        maxId = entry.cartId;
+      }
+    }
+    slip.cart.push({
+      cartId: maxId + 1,
+      menuId: item.id,
+      name: item.name,
+      price: item.price,
+      toppings: savedToppings,
+      unitPrice: item.price + toppingTotal(savedToppings),
+      quantity: quantity,
+    });
+  }
+
+  saveSlips();
+  showCart();
+  showToast(`${item.name}を${quantity}個カートに入れました`);
+}
+
+// カートの「−」「＋」で数量を変える（change は -1 か +1。1〜10の範囲だけ）
+function changeCartQuantity(cartId, change) {
+  for (const entry of slip.cart) {
+    if (entry.cartId === cartId) {
+      const next = entry.quantity + change;
+      if (next >= 1 && next <= 10) {
+        entry.quantity = next;
+      }
+    }
+  }
+  saveSlips();
+  showCart();
+}
+
+// カートから料理を外す（まだ注文していないので、記録には残さない）
+function removeFromCart(cartId) {
+  const rest = [];
+  for (const entry of slip.cart) {
+    if (entry.cartId !== cartId) {
+      rest.push(entry);
+    }
+  }
+  slip.cart = rest;
+  saveSlips();
+  showCart();
+}
+
+// カートのページを表示する
+function showCart() {
+  const list = document.getElementById("cart-list");
+  list.innerHTML = "";
+
+  for (const entry of slip.cart) {
+    let minusDisabled = "";
+    if (entry.quantity <= 1) {
+      minusDisabled = "disabled";
+    }
+    let plusDisabled = "";
+    if (entry.quantity >= 10) {
+      plusDisabled = "disabled";
+    }
+
+    const row = document.createElement("li");
+    row.className = "order-item";
+    row.innerHTML = `
+      <span class="order-name">${orderLabel(entry)}</span>
+      <span class="quantity-control">
+        <button class="minus-button" ${minusDisabled}>−</button>
+        <span class="order-quantity">${entry.quantity}</span>
+        <button class="plus-button" ${plusDisabled}>＋</button>
+      </span>
+      <span class="order-price">${(entry.unitPrice * entry.quantity).toLocaleString()}円</span>
+      <button class="cancel-button">削除</button>
+    `;
+    row.querySelector(".minus-button").addEventListener("click", function () {
+      changeCartQuantity(entry.cartId, -1);
+    });
+    row.querySelector(".plus-button").addEventListener("click", function () {
+      changeCartQuantity(entry.cartId, 1);
+    });
+    row.querySelector(".cancel-button").addEventListener("click", function () {
+      removeFromCart(entry.cartId);
+    });
+    list.appendChild(row);
+  }
+
+  if (slip.cart.length === 0) {
+    list.innerHTML = '<li class="empty">カートは空です。メニューから料理を選んでください</li>';
+  }
+
+  document.getElementById("cart-subtotal").textContent = `カートの合計（税抜）：${cartTotal().toLocaleString()}円`;
+  document.getElementById("cart-error").textContent = "";
+  updateCartBadge();
+}
+
+// カートの合計金額
+function cartTotal() {
+  let total = 0;
+  for (const entry of slip.cart) {
+    total += entry.unitPrice * entry.quantity;
+  }
+  return total;
+}
+
+// タブの「カート(○)」と、スマホの固定バーを表示し直す（○はカートの数量の合計）
+function updateCartBadge() {
+  let count = 0;
+  for (const entry of slip.cart) {
+    count += entry.quantity;
+  }
+  const badge = document.getElementById("cart-badge");
+  if (count > 0) {
+    badge.textContent = String(count);
+  } else {
+    badge.textContent = "";
+  }
+  document.getElementById("mobile-bar").textContent = `カート ${count}品・${cartTotal().toLocaleString()}円 ▶ カートを見る`;
+}
+
+// カートの「注文する」：カートの中身を注文として記録し、注文済みのページに移る
+function placeOrder() {
+  const errorText = document.getElementById("cart-error");
+  errorText.textContent = "";
+
+  if (slip.cart.length === 0) {
+    errorText.textContent = "カートが空です。メニューから料理を選んでください";
+    return;
+  }
+
+  // カートに入れたあとで年齢を変えたときのために、お酒の年齢確認をもう一度する
+  for (const entry of slip.cart) {
+    const item = findMenu(entry.menuId);
+    if (item === null) {
+      continue;
+    }
+    const alcoholError = checkAlcohol(item);
+    if (alcoholError !== "") {
+      errorText.textContent = `${item.name}：${alcoholError}`;
+      return;
+    }
+  }
+
+  for (const entry of slip.cart) {
+    const item = findMenu(entry.menuId);
+    if (item !== null) {
+      addOrder(item, entry.quantity, entry.toppings);
+    }
+  }
+  slip.cart = [];
+  saveSlips();
+  showCart();
+  showOrders();
+  showToast("ご注文ありがとうございます！お料理をお待ちください");
+  showPage("orders");
+}
+
+// 画面の下に、お知らせを数秒だけ出す
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () {
+    toast.hidden = true;
+  }, 2500);
+}
+
+// ページを切り替える（name は "guest" "menu" "cart" "orders" のどれか）
+let currentPage = "guest";
+function showPage(name) {
+  currentPage = name;
+  for (const page of document.querySelectorAll(".page")) {
+    page.hidden = page.id !== `page-${name}`;
+  }
+  for (const tab of document.querySelectorAll(".page-tab")) {
+    if (tab.dataset.page === name) {
+      tab.classList.add("active");
+    } else {
+      tab.classList.remove("active");
+    }
+  }
+  window.scrollTo(0, 0);
+}
+
+// トッピングの値段の合計を計算する
+function toppingTotal(toppings) {
+  let total = 0;
+  for (const topping of toppings) {
+    total += topping.price;
+  }
+  return total;
+}
+
+// 注文の1個あたりの値段（料理＋トッピング）
+// トッピングを追加する前の古いデータには unitPrice がないので、price を使う
+function unitPriceOf(order) {
+  if (typeof order.unitPrice === "number") {
+    return order.unitPrice;
+  }
+  return order.price;
+}
+
+// 注文のトッピング（古いデータにはないので、そのときは空の配列）
+function toppingsOf(order) {
+  if (Array.isArray(order.toppings)) {
+    return order.toppings;
+  }
+  return [];
+}
+
+// 「鶏の唐揚げ（タルタルソース・レモン）」のように、料理名にトッピングを付けた文字にする
+function orderLabel(order) {
+  const toppings = toppingsOf(order);
+  if (toppings.length === 0) {
+    return order.name;
+  }
+  const names = [];
+  for (const topping of toppings) {
+    names.push(topping.name);
+  }
+  return `${order.name}（${names.join("・")}）`;
+}
+
 // 伝票に注文を1件追加する
-function addOrder(item, quantity) {
+function addOrder(item, quantity, toppings) {
+  // 記録するトッピングは、id・名前・値段だけにする
+  const savedToppings = saveToppings(toppings);
+
   const order = {
     orderId: slip.orders.length + 1,
     menuId: item.id,
     name: item.name,
     price: item.price,
+    toppings: savedToppings,
+    unitPrice: item.price + toppingTotal(savedToppings), // 料理＋トッピングの1個あたりの値段
     quantity: quantity,
     orderedAt: new Date().toLocaleString("ja-JP"),
     status: "注文済み",
   };
   slip.orders.push(order);
+  saveSlips();
+  showOrders();
+}
+
+// 注文一覧の「−」「＋」で数量を変える（change は -1 か +1）
+function changeQuantity(orderId, change) {
+  // 会計後の伝票は変えられない
+  if (slip.checkout !== null) {
+    return;
+  }
+  for (const order of slip.orders) {
+    if (order.orderId === orderId && order.status === "注文済み") {
+      const next = order.quantity + change;
+      // 数量は1〜10の範囲だけ
+      if (next >= 1 && next <= 10) {
+        order.quantity = next;
+      }
+    }
+  }
   saveSlips();
   showOrders();
 }
@@ -703,14 +1082,34 @@ function showOrders() {
     }
     count++;
 
+    // 数量が1なら「−」、10なら「＋」を押せなくする
+    let minusDisabled = "";
+    if (order.quantity <= 1) {
+      minusDisabled = "disabled";
+    }
+    let plusDisabled = "";
+    if (order.quantity >= 10) {
+      plusDisabled = "disabled";
+    }
+
     const row = document.createElement("li");
     row.className = "order-item";
     row.innerHTML = `
-      <span class="order-name">${order.name}</span>
-      <span>× ${order.quantity}</span>
-      <span class="order-price">${order.price * order.quantity}円</span>
+      <span class="order-name">${orderLabel(order)}</span>
+      <span class="quantity-control">
+        <button class="minus-button" ${minusDisabled}>−</button>
+        <span class="order-quantity">${order.quantity}</span>
+        <button class="plus-button" ${plusDisabled}>＋</button>
+      </span>
+      <span class="order-price">${(unitPriceOf(order) * order.quantity).toLocaleString()}円</span>
       <button class="cancel-button">取消</button>
     `;
+    row.querySelector(".minus-button").addEventListener("click", function () {
+      changeQuantity(order.orderId, -1);
+    });
+    row.querySelector(".plus-button").addEventListener("click", function () {
+      changeQuantity(order.orderId, 1);
+    });
     row.querySelector(".cancel-button").addEventListener("click", function () {
       cancelOrder(order.orderId);
     });
@@ -718,53 +1117,71 @@ function showOrders() {
   }
 
   if (count === 0) {
-    orderList.innerHTML = '<li class="empty">まだ注文はありません</li>';
+    orderList.innerHTML = '<li class="empty">まだ注文はありません。カートから「注文する」を押すとここに出ます</li>';
   }
 
   // 今の小計（税抜）も表示する
-  const subtotal = calcSubtotal();
-  document.getElementById("subtotal").textContent = `小計（税抜）：${subtotal.toLocaleString()}円`;
+  document.getElementById("subtotal").textContent = `小計（税抜）：${calcSubtotal().toLocaleString()}円`;
+}
 
-  // スマホの画面下の固定バー：「注文 ○品・小計 ○円」（○品は数量の合計）
-  let itemCount = 0;
-  for (const order of slip.orders) {
-    if (order.status === "注文済み") {
-      itemCount += order.quantity;
-    }
+// 小計（取り消していない注文の「1個あたりの値段 × 数量」の合計）を計算する
+// targetSlip を省略すると、今の伝票で計算する
+function calcSubtotal(targetSlip) {
+  if (targetSlip === undefined) {
+    targetSlip = slip;
   }
-  document.getElementById("mobile-bar").textContent = `注文 ${itemCount}品・小計 ${subtotal.toLocaleString()}円 ▶ 注文一覧へ`;
-}
-
-// スマホの固定バーを押したら、注文一覧までスクロールする
-function scrollToOrders() {
-  document.getElementById("order-section").scrollIntoView({ behavior: "smooth" });
-}
-
-// 小計（取り消していない注文の「価格 × 数量」の合計）を計算する
-function calcSubtotal() {
   let subtotal = 0;
-  for (const order of slip.orders) {
+  for (const order of targetSlip.orders) {
     if (order.status === "注文済み") {
-      subtotal += order.price * order.quantity;
+      subtotal += unitPriceOf(order) * order.quantity;
     }
   }
   return subtotal;
 }
 
-// 「会計する」を押したときの動き
+// 会計の金額を計算する（README の「会計」の順番どおり）
+function calcCheckout(people) {
+  const subtotal = calcSubtotal();
+  const otoshi = 300 * people; // お通し代：1人300円
+  // 消費税：10%で1円未満は切り捨て（小数の計算誤差が出ないよう、10で割って切り捨てる）
+  const tax = Math.floor((subtotal + otoshi) / 10);
+  const total = subtotal + otoshi + tax; // 税込合計
+  const perPerson = Math.ceil(total / people); // 1人あたり：1円未満は切り上げ
+  return {
+    people: people,
+    subtotal: subtotal,
+    otoshi: otoshi,
+    tax: tax,
+    total: total,
+    perPerson: perPerson,
+  };
+}
+
+// 会計の内訳の表（HTML）を作る。確認画面と会計の結果の両方で使う
+function checkoutTable(c) {
+  return `
+    <table class="receipt-table">
+      <tr><td>小計</td><td>${c.subtotal.toLocaleString()}円</td></tr>
+      <tr><td>お通し代（300円 × ${c.people}人）</td><td>${c.otoshi.toLocaleString()}円</td></tr>
+      <tr><td>消費税（10%）</td><td>${c.tax.toLocaleString()}円</td></tr>
+      <tr class="receipt-total"><td>税込合計</td><td>${c.total.toLocaleString()}円</td></tr>
+      <tr><td>1人あたり（${c.people}人）</td><td>${c.perPerson.toLocaleString()}円</td></tr>
+    </table>
+  `;
+}
+
+// 「会計する」を押したときの動き：チェックしてから確認画面を出す（まだ会計は確定しない）
 function checkout() {
   const errorText = document.getElementById("checkout-error");
   errorText.textContent = "";
 
   // 人数は最初の人数入力画面で決めたものを使う
-  const people = slip.people;
-  if (people === null) {
+  if (slip.people === null) {
     errorText.textContent = "人数が決まっていません。「人数を変える」から入力してください";
     return;
   }
 
   // 注文が1件もなければ会計しない
-  const subtotal = calcSubtotal();
   let activeCount = 0;
   for (const order of slip.orders) {
     if (order.status === "注文済み") {
@@ -776,48 +1193,69 @@ function checkout() {
     return;
   }
 
-  // README の「会計」の順番どおりに計算する
-  const otoshi = 300 * people; // お通し代：1人300円
-  // 消費税：10%で1円未満は切り捨て（小数の計算誤差が出ないよう、10で割って切り捨てる）
-  const tax = Math.floor((subtotal + otoshi) / 10);
-  const total = subtotal + otoshi + tax; // 税込合計
-  const perPerson = Math.ceil(total / people); // 1人あたり：1円未満は切り上げ
+  // カートにまだ注文していない料理が残っていたら、先に注文か削除をしてもらう
+  if (slip.cart.length > 0) {
+    errorText.textContent = "カートにまだ注文していない料理があります。カートで「注文する」か「削除」をしてください";
+    return;
+  }
+
+  // 確認画面に、注文内容と会計の内訳を出す
+  let rows = "";
+  for (const order of slip.orders) {
+    if (order.status !== "注文済み") {
+      continue;
+    }
+    rows += `
+      <tr>
+        <td>${orderLabel(order)}</td>
+        <td>× ${order.quantity}</td>
+        <td>${(unitPriceOf(order) * order.quantity).toLocaleString()}円</td>
+      </tr>
+    `;
+  }
+  document.getElementById("confirm-detail").innerHTML = `
+    <table class="confirm-orders">${rows}</table>
+    ${checkoutTable(calcCheckout(slip.people))}
+  `;
+  document.getElementById("confirm").hidden = false;
+}
+
+// 確認画面の「戻る」：何も変えずに閉じる
+function closeConfirm() {
+  document.getElementById("confirm").hidden = true;
+}
+
+// 確認画面の「この内容で会計する」：会計を確定する
+function confirmCheckout() {
+  closeConfirm();
 
   // 会計情報を伝票に記録して保存する（データは店側に残る）
-  slip.checkout = {
-    people: people,
-    subtotal: subtotal,
-    otoshi: otoshi,
-    tax: tax,
-    total: total,
-    perPerson: perPerson,
-    paidAt: new Date().toLocaleString("ja-JP"),
-  };
+  slip.checkout = calcCheckout(slip.people);
+  slip.checkout.paidAt = new Date().toLocaleString("ja-JP");
   saveSlips();
 
-  // 会計の結果を画面に出す
+  // 会計の結果を画面に出す（「注文まとめ」で見られるように、会計した伝票を覚えておく）
+  paidSlip = slip;
   showReceipt(slip.checkout);
 
   // 画面はリセット：次のお客さん用に新しい伝票を始める
   startNewSlip();
   showOrders();
+  showCart();
   // 前のお客さんの年齢・おすすめも消しておく
   document.getElementById("age").value = "";
   checkAgeInput();
   resetRecommend();
+  // 次のお客さんは、お客さま情報のページから始める
+  showPage("guest");
 }
+
+// 最後に会計した伝票（会計の結果の窓から「注文まとめ」を見るときに使う）
+let paidSlip = null;
 
 // 会計の結果（内訳・税込合計・1人あたり）を窓に出す
 function showReceipt(c) {
-  document.getElementById("receipt-detail").innerHTML = `
-    <table class="receipt-table">
-      <tr><td>小計</td><td>${c.subtotal.toLocaleString()}円</td></tr>
-      <tr><td>お通し代（300円 × ${c.people}人）</td><td>${c.otoshi.toLocaleString()}円</td></tr>
-      <tr><td>消費税（10%）</td><td>${c.tax.toLocaleString()}円</td></tr>
-      <tr class="receipt-total"><td>税込合計</td><td>${c.total.toLocaleString()}円</td></tr>
-      <tr><td>1人あたり（${c.people}人）</td><td>${c.perPerson.toLocaleString()}円</td></tr>
-    </table>
-  `;
+  document.getElementById("receipt-detail").innerHTML = checkoutTable(c);
   document.getElementById("receipt").hidden = false;
 }
 
@@ -825,6 +1263,93 @@ function showReceipt(c) {
 function closeReceipt() {
   document.getElementById("receipt").hidden = true;
   showWelcome();
+}
+
+// 注文まとめの窓を開く：伝票の注文を、取消を除いて「料理」と「ドリンク」に分けてまとめる
+// 同じ料理で同じトッピングのものは1行にまとめる
+function openSummary(targetSlip) {
+  const groups = {}; // キー：料理の id とトッピングの id を並べた文字
+  const keys = []; // まとめた行の順番（最初に注文した順）
+
+  for (const order of targetSlip.orders) {
+    if (order.status !== "注文済み") {
+      continue;
+    }
+    const toppingIds = [];
+    for (const topping of toppingsOf(order)) {
+      toppingIds.push(topping.id);
+    }
+    toppingIds.sort();
+    const key = `${order.menuId}|${toppingIds.join(",")}`;
+
+    if (groups[key] === undefined) {
+      const item = findMenu(order.menuId);
+      groups[key] = {
+        order: order,
+        isDrink: item !== null && item.category === "ドリンク",
+        quantity: 0,
+        amount: 0,
+      };
+      keys.push(key);
+    }
+    groups[key].quantity += order.quantity;
+    groups[key].amount += unitPriceOf(order) * order.quantity;
+  }
+
+  // 「料理」と「ドリンク」の表をそれぞれ作る
+  function makeTable(isDrink) {
+    let rows = "";
+    for (const key of keys) {
+      const g = groups[key];
+      if (g.isDrink !== isDrink) {
+        continue;
+      }
+      const names = [];
+      for (const topping of toppingsOf(g.order)) {
+        names.push(topping.name);
+      }
+      let toppingText = "なし";
+      if (names.length > 0) {
+        toppingText = names.join("・");
+      }
+      rows += `
+        <tr>
+          <td>${g.order.name}</td>
+          <td>${toppingText}</td>
+          <td>${g.quantity}</td>
+          <td>${g.amount.toLocaleString()}円</td>
+        </tr>
+      `;
+    }
+    if (rows === "") {
+      return '<p class="empty">ありません</p>';
+    }
+    return `
+      <table class="summary-table">
+        <tr><th>品名</th><th>トッピング</th><th>数量</th><th>金額</th></tr>
+        ${rows}
+      </table>
+    `;
+  }
+
+  let totalCount = 0;
+  for (const key of keys) {
+    totalCount += groups[key].quantity;
+  }
+
+  document.getElementById("summary-detail").innerHTML = `
+    <h3>料理</h3>
+    ${makeTable(false)}
+    <h3>ドリンク</h3>
+    ${makeTable(true)}
+    <p class="summary-total">合計 ${totalCount}品・小計（税抜）${calcSubtotal(targetSlip).toLocaleString()}円</p>
+  `;
+  document.getElementById("summary").hidden = false;
+}
+
+// 注文まとめの窓を閉じる
+function closeSummary() {
+  document.getElementById("summary").hidden = true;
 }
 
 // 注文履歴の画面を開く
@@ -870,9 +1395,9 @@ function openHistory() {
       rows += `
         <tr class="${rowClass}">
           <td>${order.orderedAt}</td>
-          <td>${order.name}</td>
+          <td>${orderLabel(order)}</td>
           <td>${order.quantity}</td>
-          <td>${order.price * order.quantity}円</td>
+          <td>${(unitPriceOf(order) * order.quantity).toLocaleString()}円</td>
           <td>${order.status}</td>
         </tr>
       `;
@@ -907,6 +1432,8 @@ function clearHistory() {
   slips = [];
   startNewSlip();
   showOrders();
+  showCart();
+  showPage("guest");
   closeHistory();
   showWelcome();
 }
@@ -953,12 +1480,12 @@ function showPeopleScreen() {
   window.scrollTo(0, 0);
 }
 
-// メニュー画面を出す
+// メニュー画面を出す（ページは、最後に見ていたページのまま）
 function showApp() {
   document.getElementById("people-screen").hidden = true;
   document.getElementById("app").hidden = false;
   document.getElementById("people-display").textContent = `${slip.people}人`;
-  window.scrollTo(0, 0);
+  showPage(currentPage);
 }
 
 // 人数を決める。text は入力欄の文字や、押したボタンの数字
@@ -998,7 +1525,9 @@ showAllergyFilter();
 showTabs();
 showMenu();
 showOrders();
+showCart();
 showPeopleButtons();
+showPage("guest");
 
 // ボタンを押したときの動きを登録する
 document.getElementById("welcome").addEventListener("click", startMenu);
@@ -1010,8 +1539,33 @@ document.getElementById("age").addEventListener("input", checkAgeInput);
 document.getElementById("recommend-button").addEventListener("click", showRecommend);
 document.getElementById("search").addEventListener("input", onSearchInput);
 document.getElementById("allergy-clear").addEventListener("click", clearAllergyFilter);
-document.getElementById("mobile-bar").addEventListener("click", scrollToOrders);
+document.getElementById("mobile-bar").addEventListener("click", function () {
+  showPage("cart");
+});
+for (const tab of document.querySelectorAll(".page-tab")) {
+  tab.addEventListener("click", function () {
+    showPage(tab.dataset.page);
+  });
+}
+document.getElementById("go-menu").addEventListener("click", function () {
+  showPage("menu");
+});
+document.getElementById("cart-more").addEventListener("click", function () {
+  showPage("menu");
+});
+document.getElementById("place-order").addEventListener("click", placeOrder);
 document.getElementById("checkout-button").addEventListener("click", checkout);
+document.getElementById("confirm-back").addEventListener("click", closeConfirm);
+document.getElementById("confirm-ok").addEventListener("click", confirmCheckout);
+document.getElementById("summary-button").addEventListener("click", function () {
+  openSummary(slip);
+});
+document.getElementById("receipt-summary").addEventListener("click", function () {
+  if (paidSlip !== null) {
+    openSummary(paidSlip);
+  }
+});
+document.getElementById("summary-close").addEventListener("click", closeSummary);
 document.getElementById("receipt-close").addEventListener("click", closeReceipt);
 document.getElementById("history-button").addEventListener("click", openHistory);
 document.getElementById("history-close").addEventListener("click", closeHistory);
