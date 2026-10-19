@@ -34,6 +34,12 @@
       <p>いらっしゃいませ！</p>
     </header>
 
+    <!-- 広告スライド（5秒ごとに次の広告へ。下の●を押すとその広告に切り替わる） -->
+    <div id="ad-area">
+      <div id="ad-track"></div>
+      <div id="ad-dots"></div>
+    </div>
+
     <!-- ページを切り替えるタブ（スクロールしても画面の上に固定） -->
     <nav id="page-tabs">
       <button class="page-tab" data-page="guest">お客さま情報</button>
@@ -114,6 +120,12 @@
       <div class="nomihodai-row">
         <button id="nomihodai-apply">🍻 飲み放題を申し込む</button>
       </div>
+
+      <!-- 人気ランキング（全部の伝票の注文から、上位3品） -->
+      <section id="ranking-section" class="panel">
+        <h2>人気ランキング</h2>
+        <ol id="ranking-list"></ol>
+      </section>
       <!-- 検索欄（1文字打つごとに結果が変わる） -->
       <div id="search-area">
         <input type="search" id="search" placeholder="🔍 料理を探す（例：からあげ、さっぱり、ビール）">

@@ -1567,6 +1567,188 @@ function showOrders() {
     subtotalHtml += `<br><span class="discount-text">ハッピーアワー割引：−${discount.toLocaleString()}円</span>`;
   }
   document.getElementById("subtotal").innerHTML = subtotalHtml;
+
+  // 注文・取消・数量変更をしたら、すぐにランキングも更新する
+  showRanking();
+}
+
+// ===== 人気ランキング =====
+
+// 人気ランキングを表示する
+// 全部の伝票から、取消を除いた注文の数量を料理ごとに合計し、多い順に上位3品を出す
+// （トッピングの違いは区別しない。飲み放題の0円のドリンクも数に入れる。同じ数なら id の小さい順）
+function showRanking() {
+  const list = document.getElementById("ranking-list");
+  list.innerHTML = "";
+
+  const ranking = countOrders(function () {
+    return true;
+  }).slice(0, 3);
+
+  if (ranking.length === 0) {
+    list.innerHTML = '<li class="empty">まだ注文がありません</li>';
+    return;
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+  for (let i = 0; i < ranking.length; i++) {
+    const entry = ranking[i];
+    const row = document.createElement("li");
+    row.className = "ranking-item";
+    row.innerHTML = `
+      <span class="ranking-name">${medals[i]} ${i + 1}位 ${entry.item.name}（${entry.count}個）</span>
+      <button class="order-button">カートに入れる</button>
+      <p class="error"></p>
+    `;
+    // ランキングからは数量1・トッピングなしでカートに入れる
+    const errorText = row.querySelector(".error");
+    row.querySelector(".order-button").addEventListener("click", function () {
+      errorText.textContent = tryOrder(entry.item, "1");
+    });
+    list.appendChild(row);
+  }
+}
+
+// ===== 広告スライド =====
+
+const AD_COUNT = 4; // 広告の枚数
+const AD_INTERVAL = 5000; // 5秒ごとに切り替える
+let adIndex = 0; // 今表示している広告の番号（0〜3。4 は1枚目の写し）
+let adTimer = null;
+
+// 4枚の広告の中身を、今の状態から作る（切り替わるたびに呼んで、最新にする）
+function adContents() {
+  // 1枚目：人気No.1（まだ注文がなければ、名物のつくね）
+  const ranking = countOrders(function () {
+    return true;
+  });
+  let popularText = "名物 つくね、ぜひどうぞ！";
+  if (ranking.length > 0) {
+    popularText = `人気No.1は${ranking[0].item.name}！`;
+  }
+
+  // 2枚目：ハッピーアワー（getNow() で開催中かどうかを見る）
+  let hhText = `毎日${HAPPY_HOUR_START}:00〜${HAPPY_HOUR_END}:00はお酒が${HAPPY_HOUR_DISCOUNT}円引き`;
+  if (isHappyHour()) {
+    hhText = `ハッピーアワー開催中！ お酒${HAPPY_HOUR_DISCOUNT}円引き ${HAPPY_HOUR_END}:00まで`;
+  }
+
+  return [
+    { icon: "🏆", text: popularText, className: "ad-popular" },
+    { icon: "🍺", text: hhText, className: "ad-hh" },
+    { icon: "🍻", text: "飲み放題 90分1,500円から。プレミアムなら全ドリンクOK", className: "ad-nomihodai" },
+    { icon: "✨", text: "年齢と気分を入れると、おすすめが見られます", className: "ad-recommend" },
+  ];
+}
+
+// 広告のスライドと●を作る（最初に1回だけ）
+// ループさせるために、4枚の後ろに1枚目の写しを置く（4枚目 → 写し → すぐ本物の1枚目に戻す）
+function buildAds() {
+  const track = document.getElementById("ad-track");
+  const dots = document.getElementById("ad-dots");
+  for (let i = 0; i <= AD_COUNT; i++) {
+    const slide = document.createElement("button");
+    slide.className = "ad-slide";
+    slide.addEventListener("click", function () {
+      onAdClick(i % AD_COUNT);
+    });
+    track.appendChild(slide);
+  }
+  for (let i = 0; i < AD_COUNT; i++) {
+    const dot = document.createElement("button");
+    dot.className = "ad-dot";
+    dot.setAttribute("aria-label", `${i + 1}枚目の広告`);
+    dot.addEventListener("click", function () {
+      refreshAds();
+      goToAd(i, true);
+      restartAdTimer();
+    });
+    dots.appendChild(dot);
+  }
+  // 写しまでスライドし終わったら、アニメーションなしで本物の1枚目に戻す
+  track.addEventListener("transitionend", function () {
+    if (adIndex >= AD_COUNT) {
+      goToAd(0, false);
+    }
+  });
+  refreshAds();
+  goToAd(0, false);
+}
+
+// 広告の中身を最新にする
+function refreshAds() {
+  const contents = adContents();
+  const slides = document.querySelectorAll(".ad-slide");
+  for (let i = 0; i < slides.length; i++) {
+    const ad = contents[i % AD_COUNT];
+    slides[i].className = `ad-slide ${ad.className}`;
+    slides[i].innerHTML = `<span class="ad-icon">${ad.icon}</span><span class="ad-text">${ad.text}</span>`;
+  }
+}
+
+// index 番目の広告を出す。animate が true なら横にスライドする
+function goToAd(index, animate) {
+  const track = document.getElementById("ad-track");
+  if (animate) {
+    track.style.transition = "transform 0.6s ease";
+  } else {
+    track.style.transition = "none";
+  }
+  track.style.transform = `translateX(-${index * 100}%)`;
+  adIndex = index;
+
+  // ●は、今の広告のところだけ色を付ける
+  const dots = document.querySelectorAll(".ad-dot");
+  for (let i = 0; i < dots.length; i++) {
+    if (i === index % AD_COUNT) {
+      dots[i].classList.add("active");
+    } else {
+      dots[i].classList.remove("active");
+    }
+  }
+}
+
+// 次の広告へ（4枚目の次は1枚目の写しへ進み、そのあと本物の1枚目に戻る）
+function nextAd() {
+  const track = document.getElementById("ad-track");
+  // 画面が隠れていてアニメーションが終わらなかったときのために、写しにいたら先に1枚目へ戻す
+  if (adIndex >= AD_COUNT) {
+    goToAd(0, false);
+    void track.offsetWidth; // 戻したことをブラウザにすぐ反映させる
+  }
+  refreshAds();
+  goToAd(adIndex + 1, true);
+}
+
+// 自動で切り替えるタイマーを、最初から数え直す
+function restartAdTimer() {
+  clearInterval(adTimer);
+  adTimer = setInterval(nextAd, AD_INTERVAL);
+}
+
+// 広告を押したら、関係する場所へ移ってスクロールする
+function onAdClick(index) {
+  if (index === 0) {
+    // 人気No.1 → ランキング
+    showPage("menu");
+    document.getElementById("ranking-section").scrollIntoView({ behavior: "smooth" });
+  } else if (index === 1) {
+    // ハッピーアワー → ドリンクのタブ
+    document.getElementById("search").value = "";
+    currentCategory = "ドリンク";
+    showTabs();
+    showMenu();
+    showPage("menu");
+    document.getElementById("tabs").scrollIntoView({ behavior: "smooth" });
+  } else if (index === 2) {
+    // 飲み放題 → 申し込みボタン
+    showPage("menu");
+    document.getElementById("nomihodai-apply").scrollIntoView({ behavior: "smooth" });
+  } else {
+    // おすすめ → おすすめ欄
+    showPage("guest");
+    document.getElementById("recommend-button").scrollIntoView({ behavior: "smooth" });
+  }
 }
 
 // ハッピーアワー割引の合計（取り消していない注文の「1個あたりの割引 × 数量」の合計）
@@ -2034,6 +2216,8 @@ showPeopleButtons();
 showPage("guest");
 updateHappyHour();
 updateNomihodai();
+buildAds();
+restartAdTimer();
 
 // ハッピーアワーの表示（あと○分）は1分ごと、飲み放題の残り時間は1秒ごとに更新する
 setInterval(updateHappyHour, 60 * 1000);

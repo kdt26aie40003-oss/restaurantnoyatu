@@ -902,6 +902,124 @@ footer button {
   text-align: right;
 }
 
+/* 広告スライド */
+#ad-area {
+  position: relative;
+  overflow: hidden; /* 画面の外にある広告は見せない */
+  background-color: #2b2b2b;
+}
+
+/* 広告を横一列に並べ、transform で左右に動かす */
+#ad-track {
+  display: flex;
+}
+
+.ad-slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: 10px 16px 22px;
+  border: none;
+  color: white;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: bold;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ad-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+/* 長い文字も横幅に収まるように折り返す */
+.ad-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ad-popular {
+  background: linear-gradient(90deg, #b5482d, #e07a3f);
+}
+
+.ad-hh {
+  background: linear-gradient(90deg, #c99400, #f0b400);
+}
+
+.ad-nomihodai {
+  background: linear-gradient(90deg, #34507a, #4a6fa5);
+}
+
+.ad-recommend {
+  background: linear-gradient(90deg, #4f7a3a, #6fa052);
+}
+
+/* 今何枚目かを示す● */
+#ad-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ad-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.ad-dot.active {
+  background-color: white;
+}
+
+/* 人気ランキング */
+#ranking-section {
+  margin-bottom: 12px;
+}
+
+#ranking-section h2 {
+  font-size: 17px;
+}
+
+#ranking-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+/* 左に順位と料理名、右にボタン。エラーはその下の行いっぱいに出す */
+.ranking-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.ranking-name {
+  font-weight: bold;
+}
+
+.ranking-item .error {
+  grid-column: 1 / -1;
+}
+
+.ranking-item .error:empty {
+  display: none;
+}
+
 /* ページを切り替えるタブ（スクロールしても画面の上に固定） */
 #page-tabs {
   position: sticky;
@@ -1077,6 +1195,16 @@ footer button {
   .allergy-title {
     padding: 12px 0;
     font-size: 16px;
+  }
+
+  /* 広告の文字は少し小さくして、横幅に収める */
+  .ad-slide {
+    font-size: 15px;
+  }
+
+  /* 広告の●は小さいままにする（押しやすさより見た目を優先。広告そのものも押せる） */
+  .ad-dot {
+    min-height: 0;
   }
 
   /* ページのタブは4つが1行に収まるように文字を小さめにする */
