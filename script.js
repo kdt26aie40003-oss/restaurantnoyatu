@@ -669,12 +669,19 @@ function showMenu() {
 
     const card = document.createElement("div");
     card.className = "menu-item";
+    // 左に料理のイラスト、右に料理名・アレルギー・値段を並べる
+    // （料理名は文字で出しているので、画像の alt は空にして読み上げが重ならないようにする）
     card.innerHTML = `
-      ${categoryMark}
-      <h2>${item.name}</h2>
-      <p class="allergen">${allergenLabel(item.allergens)}</p>
-      ${alcoholMark}
-      ${priceHtml}
+      <div class="card-head">
+        <img class="menu-image" src="${item.image}" alt="">
+        <div class="card-info">
+          ${categoryMark}
+          <h2>${item.name}</h2>
+          <p class="allergen">${allergenLabel(item.allergens)}</p>
+          ${alcoholMark}
+          ${priceHtml}
+        </div>
+      </div>
       ${toppingHtml}
       <div class="order-row">
         <label>数量 <input type="text" class="quantity" value="1" inputmode="numeric"></label>
@@ -902,6 +909,7 @@ function makeRecommendCard(item, reason) {
 
   card.innerHTML = `
     <p class="recommend-reason">${reason}</p>
+    <img class="recommend-image" src="${item.image}" alt="">
     <h3>${item.name}</h3>
     <p class="price">${item.price}円（税抜）</p>
     ${hhNote}
@@ -1596,7 +1604,7 @@ function showRanking() {
     const row = document.createElement("li");
     row.className = "ranking-item";
     row.innerHTML = `
-      <span class="ranking-name">${medals[i]} ${i + 1}位 ${entry.item.name}（${entry.count}個）</span>
+      <span class="ranking-name"><img class="ranking-image" src="${entry.item.image}" alt="">${medals[i]} ${i + 1}位 ${entry.item.name}（${entry.count}個）</span>
       <button class="order-button">カートに入れる</button>
       <p class="error"></p>
     `;
@@ -1633,11 +1641,12 @@ function adContents() {
     hhText = `ハッピーアワー開催中！ お酒${HAPPY_HOUR_DISCOUNT}円引き ${HAPPY_HOUR_END}:00まで`;
   }
 
+  // image は広告のイラストの場所
   return [
-    { icon: "🏆", text: popularText, className: "ad-popular" },
-    { icon: "🍺", text: hhText, className: "ad-hh" },
-    { icon: "🍻", text: "飲み放題 90分1,500円から。プレミアムなら全ドリンクOK", className: "ad-nomihodai" },
-    { icon: "✨", text: "年齢と気分を入れると、おすすめが見られます", className: "ad-recommend" },
+    { image: "images/ads/popular.svg", text: popularText, className: "ad-popular" },
+    { image: "images/ads/happyhour.svg", text: hhText, className: "ad-hh" },
+    { image: "images/ads/nomihodai.svg", text: "飲み放題 90分1,500円から。プレミアムなら全ドリンクOK", className: "ad-nomihodai" },
+    { image: "images/ads/recommend.svg", text: "年齢と気分を入れると、おすすめが見られます", className: "ad-recommend" },
   ];
 }
 
@@ -1682,7 +1691,7 @@ function refreshAds() {
   for (let i = 0; i < slides.length; i++) {
     const ad = contents[i % AD_COUNT];
     slides[i].className = `ad-slide ${ad.className}`;
-    slides[i].innerHTML = `<span class="ad-icon">${ad.icon}</span><span class="ad-text">${ad.text}</span>`;
+    slides[i].innerHTML = `<img class="ad-image" src="${ad.image}" alt=""><span class="ad-text">${ad.text}</span>`;
   }
 }
 

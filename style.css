@@ -190,7 +190,8 @@ main {
 /* メニューをカード状に並べる（画面幅に合わせて列数が変わる） */
 #menu-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  /* イラストと料理名を横に並べても窮屈にならないよう、1枚の幅は260px以上にする */
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 
@@ -204,6 +205,42 @@ main {
 .menu-item h2 {
   margin: 0;
   font-size: 18px;
+}
+
+/* 料理のカードの上の段：左にイラスト、右に料理名など */
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.menu-image {
+  width: 88px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.card-info {
+  min-width: 0; /* 長い料理名でもカードからはみ出さないようにする */
+}
+
+/* おすすめのカードのイラスト */
+.recommend-image {
+  display: block;
+  width: 96px;
+  height: 72px;
+  margin: 4px 0;
+  border-radius: 8px;
+}
+
+/* ランキングの小さいイラスト */
+.ranking-image {
+  width: 40px;
+  height: 30px;
+  margin-right: 6px;
+  border-radius: 4px;
+  vertical-align: middle;
 }
 
 .price {
@@ -932,8 +969,9 @@ footer button {
   cursor: pointer;
 }
 
-.ad-icon {
-  font-size: 26px;
+.ad-image {
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
 }
 

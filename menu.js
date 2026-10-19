@@ -142,8 +142,10 @@ for (let id = 8; id <= 17; id++) {
 }
 
 // 各料理に toppings（トッピングの配列）を付ける。ない料理は空の配列
+// image は料理のイラストの場所（images/menu/料理のid.svg）
 for (const item of menu) {
   item.toppings = toppingList[item.id] || [];
+  item.image = `images/menu/${item.id}.svg`;
 }
 
 // 飲み放題の区分。プレミアムプランだけで飲み放題になるドリンクの id
