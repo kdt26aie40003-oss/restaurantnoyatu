@@ -213,8 +213,8 @@ main {
 
 .allergen {
   margin: 4px 0 0;
-  font-size: 12px;
-  color: #777;
+  font-size: 13px;
+  color: #555;
 }
 
 /* 数量の入力欄と「注文する」ボタン */
@@ -529,4 +529,145 @@ footer button {
 .history-slip .cancelled {
   color: #999;
   text-decoration: line-through;
+}
+
+/* 検索欄 */
+#search-area {
+  margin-bottom: 12px;
+}
+
+#search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+#search:focus {
+  border-color: #b5482d;
+  outline: none;
+}
+
+/* アレルギーで絞り込み */
+#allergy-area {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.allergy-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+#allergy-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.allergy-option {
+  white-space: nowrap;
+}
+
+#allergy-clear {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 13px;
+}
+
+/* アレルギーで隠した数 */
+#filter-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #b5482d;
+}
+
+#filter-note:empty {
+  display: none;
+}
+
+/* 検索中に出すカテゴリ名 */
+.category-mark {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #b5482d;
+}
+
+/* スマホの固定バー（パソコンでは出さない） */
+#mobile-bar {
+  display: none;
+}
+
+/* ===== スマホ（画面幅600px以下）のときだけの見た目 ===== */
+@media (max-width: 600px) {
+  /* メニューカードは1列に並べる */
+  #menu-list,
+  #recommend-list,
+  #popular-list {
+    grid-template-columns: 1fr;
+  }
+
+  /* カテゴリタブは折り返さず、横にスクロールできるようにする */
+  #tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .tab {
+    flex-shrink: 0;
+  }
+
+  /* ボタンと入力欄は、指で押しやすいように高さ44px以上・文字16px以上にする */
+  button,
+  input[type="text"],
+  input[type="search"] {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* チェックボックスとラジオボタンの文字も押しやすい大きさにする */
+  .choice-row label,
+  .allergy-option {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #allergy-clear {
+    font-size: 16px;
+  }
+
+  /* 固定バーで隠れないように、ページの一番下に余白を作る */
+  #app {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 画面下に固定する「注文 ○品・小計 ○円」のバー */
+  #mobile-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+    border: none;
+    background-color: #b5482d;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.2);
+  }
 }

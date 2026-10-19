@@ -123,19 +123,124 @@ function toInteger(text) {
   return number;
 }
 
+// 特定原材料8品目と、その絵文字
+const ALLERGEN_EMOJI = {
+  "えび": "🦐",
+  "かに": "🦀",
+  "くるみ": "🌰",
+  "小麦": "🌾",
+  "そば": "🍜",
+  "卵": "🥚",
+  "乳": "🥛",
+  "落花生": "🥜",
+};
+
+// アレルギーを「🥚卵 🌾小麦」のような文字にする（絵文字だけだと伝わらないので、文字も一緒に出す）
+function allergenLabel(allergens) {
+  if (allergens.length === 0) {
+    return "アレルギー表示対象なし";
+  }
+  const parts = [];
+  for (const name of allergens) {
+    parts.push(`${ALLERGEN_EMOJI[name] || ""}${name}`);
+  }
+  return parts.join(" ");
+}
+
+// 検索で比べる前に、文字を同じ形にそろえる
+// カタカナ → ひらがな、全角英数字 → 半角、大文字 → 小文字、前後の空白を消す
+function normalize(text) {
+  let result = "";
+  for (const char of String(text)) {
+    const code = char.charCodeAt(0);
+    if (code >= 0x30a1 && code <= 0x30f6) {
+      // カタカナ（ァ〜ヶ）は、ひらがなと文字コードが 0x60 ずれている
+      result += String.fromCharCode(code - 0x60);
+    } else if (code >= 0xff01 && code <= 0xff5e) {
+      // 全角の英数字・記号（！〜～）は、半角と 0xfee0 ずれている
+      result += String.fromCharCode(code - 0xfee0);
+    } else if (code === 0x3000) {
+      // 全角スペース → 半角スペース
+      result += " ";
+    } else {
+      result += char;
+    }
+  }
+  return result.toLowerCase().trim();
+}
+
+// 検索欄の言葉が、料理に当てはまるかどうか
+// 言葉をスペースで区切り、どれか1つでも「料理名・よみ・キーワード・カテゴリ名」に含まれていれば true
+function matchesSearch(item, query) {
+  const words = normalize(query).split(" ");
+  const targets = [item.name, item.yomi || "", item.category].concat(item.keywords || []);
+
+  for (const word of words) {
+    if (word === "") {
+      continue;
+    }
+    for (const target of targets) {
+      if (normalize(target).includes(word)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// 絞り込みでチェックされているアレルギーの配列
+function readAllergyFilter() {
+  return readCheckboxes("allergy-filter");
+}
+
+// 料理が、絞り込みでチェックしたアレルギーを1つでも含むかどうか
+function hasFilteredAllergen(item, filter) {
+  for (const name of item.allergens) {
+    if (filter.includes(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// アレルギーで絞り込むチェックボックスを並べる
+function showAllergyFilter() {
+  const area = document.getElementById("allergy-filter");
+  for (const name in ALLERGEN_EMOJI) {
+    const label = document.createElement("label");
+    label.className = "allergy-option";
+    label.innerHTML = `<input type="checkbox" name="allergy-filter" value="${name}"> ${ALLERGEN_EMOJI[name]}${name}`;
+    label.querySelector("input").addEventListener("change", showMenu);
+    area.appendChild(label);
+  }
+}
+
+// アレルギーの絞り込みをすべて外す
+function clearAllergyFilter() {
+  for (const box of document.querySelectorAll('input[name="allergy-filter"]')) {
+    box.checked = false;
+  }
+  showMenu();
+}
+
 // カテゴリタブを表示する
 function showTabs() {
   const tabs = document.getElementById("tabs");
   tabs.innerHTML = "";
 
+  // 検索中は、どのタブも選んでいない見た目にする
+  const searching = document.getElementById("search").value.trim() !== "";
+
   for (const category of categories) {
     const button = document.createElement("button");
     button.textContent = category;
     button.className = "tab";
-    if (category === currentCategory) {
+    if (category === currentCategory && !searching) {
       button.classList.add("active");
     }
     button.addEventListener("click", function () {
+      // タブを押したら検索をやめて、そのカテゴリを出す
+      document.getElementById("search").value = "";
       currentCategory = category;
       showTabs();
       showMenu();
@@ -144,19 +249,34 @@ function showTabs() {
   }
 }
 
-// 今のカテゴリのメニューを表示する
+// メニューを表示する
+// 検索欄に文字があれば全カテゴリから探し、なければ選んでいるタブのカテゴリを出す
+// どちらの場合も、絞り込みでチェックしたアレルギーを含む料理は隠す
 function showMenu() {
   const menuList = document.getElementById("menu-list");
+  const filterNote = document.getElementById("filter-note");
   menuList.innerHTML = "";
 
+  const query = document.getElementById("search").value;
+  const searching = query.trim() !== "";
+  const filter = readAllergyFilter();
+
+  let matchCount = 0; // 検索やタブに当てはまった数
+  let hiddenCount = 0; // そのうちアレルギーで隠した数
+
   for (const item of menu) {
-    if (item.category !== currentCategory) {
+    if (searching) {
+      if (!matchesSearch(item, query)) {
+        continue;
+      }
+    } else if (item.category !== currentCategory) {
       continue;
     }
+    matchCount++;
 
-    let allergenText = "なし";
-    if (item.allergens.length > 0) {
-      allergenText = item.allergens.join("・");
+    if (hasFilteredAllergen(item, filter)) {
+      hiddenCount++;
+      continue;
     }
 
     // お酒には「20歳以上」の印を付ける
@@ -165,13 +285,20 @@ function showMenu() {
       alcoholMark = '<p class="alcohol-mark">お酒（20歳以上）</p>';
     }
 
+    // 検索中は、どのカテゴリの料理かわかるようにカテゴリ名を出す
+    let categoryMark = "";
+    if (searching) {
+      categoryMark = `<p class="category-mark">${item.category}</p>`;
+    }
+
     const card = document.createElement("div");
     card.className = "menu-item";
     card.innerHTML = `
+      ${categoryMark}
       <h2>${item.name}</h2>
+      <p class="allergen">${allergenLabel(item.allergens)}</p>
       ${alcoholMark}
       <p class="price">${item.price}円（税抜）</p>
-      <p class="allergen">アレルギー：${allergenText}</p>
       <div class="order-row">
         <label>数量 <input type="text" class="quantity" value="1" inputmode="numeric"></label>
         <button class="order-button">注文する</button>
@@ -193,6 +320,24 @@ function showMenu() {
 
     menuList.appendChild(card);
   }
+
+  // 検索で1件も見つからなかったとき
+  if (searching && matchCount === 0) {
+    menuList.innerHTML = '<p class="empty">見つかりませんでした。別の言葉で探してみてください</p>';
+  }
+
+  // アレルギーで隠した数を出す
+  if (hiddenCount > 0) {
+    filterNote.textContent = `${hiddenCount}品を非表示にしています`;
+  } else {
+    filterNote.textContent = "";
+  }
+}
+
+// 検索欄に1文字打つごとに、タブとメニューを表示し直す
+function onSearchInput() {
+  showTabs();
+  showMenu();
 }
 
 // 年齢の入力欄を読み取る
@@ -279,9 +424,12 @@ function toAgeGroup(age) {
 }
 
 // おすすめで「選べない料理」かどうかを調べる
-// 苦手な食材を含む料理と、20歳未満のときのお酒は選べない
-// （アレルギーの絞り込みは、その機能を追加するときにここへ足す）
+// アレルギーの絞り込みでチェックしたものを含む料理、苦手な食材を含む料理、
+// 20歳未満のときのお酒は選べない
 function isUnavailable(item, age, dislikes) {
+  if (hasFilteredAllergen(item, readAllergyFilter())) {
+    return true;
+  }
   if (item.isAlcohol && age < 20) {
     return true;
   }
@@ -574,7 +722,22 @@ function showOrders() {
   }
 
   // 今の小計（税抜）も表示する
-  document.getElementById("subtotal").textContent = `小計（税抜）：${calcSubtotal().toLocaleString()}円`;
+  const subtotal = calcSubtotal();
+  document.getElementById("subtotal").textContent = `小計（税抜）：${subtotal.toLocaleString()}円`;
+
+  // スマホの画面下の固定バー：「注文 ○品・小計 ○円」（○品は数量の合計）
+  let itemCount = 0;
+  for (const order of slip.orders) {
+    if (order.status === "注文済み") {
+      itemCount += order.quantity;
+    }
+  }
+  document.getElementById("mobile-bar").textContent = `注文 ${itemCount}品・小計 ${subtotal.toLocaleString()}円 ▶ 注文一覧へ`;
+}
+
+// スマホの固定バーを押したら、注文一覧までスクロールする
+function scrollToOrders() {
+  document.getElementById("order-section").scrollIntoView({ behavior: "smooth" });
 }
 
 // 小計（取り消していない注文の「価格 × 数量」の合計）を計算する
@@ -831,6 +994,7 @@ function showPeopleButtons() {
 
 // ページを開いたときに1回だけ行う準備
 chooseSlip();
+showAllergyFilter();
 showTabs();
 showMenu();
 showOrders();
@@ -844,6 +1008,9 @@ document.getElementById("people-ok").addEventListener("click", function () {
 document.getElementById("people-change").addEventListener("click", showPeopleScreen);
 document.getElementById("age").addEventListener("input", checkAgeInput);
 document.getElementById("recommend-button").addEventListener("click", showRecommend);
+document.getElementById("search").addEventListener("input", onSearchInput);
+document.getElementById("allergy-clear").addEventListener("click", clearAllergyFilter);
+document.getElementById("mobile-bar").addEventListener("click", scrollToOrders);
 document.getElementById("checkout-button").addEventListener("click", checkout);
 document.getElementById("receipt-close").addEventListener("click", closeReceipt);
 document.getElementById("history-button").addEventListener("click", openHistory);
